@@ -1,0 +1,7 @@
+__pycache__/
+.DS_Store
+graph_rag_data/chunks.json
+graph_rag_data/knowledge_graph.graphml
+graph_rag_data/vectors.npy
+manifest.json
+manifest.ndjson
