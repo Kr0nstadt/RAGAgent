@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 
+import pickle
+
 import networkx as nx
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -41,6 +43,8 @@ CHUNKS_FILE = DATA_DIR / "chunks.json"
 VECTORS_FILE = DATA_DIR / "vectors.npy"
 NODES_FILE = DATA_DIR / "nodes.json"
 TFIDF_FILE = DATA_DIR / "tfidf_vectorizer.pkl"
+GRAPH_PICKLE = DATA_DIR / "knowledge_graph.pkl"
+CHUNKS_META_FILE = DATA_DIR / "chunks_meta.json"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -66,11 +70,17 @@ class DocChunk:
     title: str
     content: str
     path: str               # иерархический путь
+    layer: int = 4          # 1=Business Scenario, 2=Clarification, 3=UI&Metadata, 4=Knowledge
+    node_type: str = 'knowledge'  # 'scenario', 'clarification', 'metadata', 'knowledge'
     parent_id: Optional[str] = None
     children_ids: List[str] = field(default_factory=list)
     refs: List[str] = field(default_factory=list)  # ссылки на другие документы
     terms: List[str] = field(default_factory=list)
     level: int = 0
+    # L1→L3: какие документы создаются в этом сценарии
+    entry_docs: List[str] = field(default_factory=list)
+    # L1→L2: какие вопросы нужно задать для этого сценария
+    clarifications: List[str] = field(default_factory=list)
 
 # ---------------------------------------------------------------------------
 # 1. Парсер markdown-файлов ITS
@@ -407,6 +417,8 @@ def parse_erp_code() -> List[DocChunk]:
             title=obj['title'],
             content=obj['content'],
             path=obj['path'],
+            layer=3,
+            node_type='metadata',
             refs=obj['refs'],
             terms=[],
             level=obj['level'],
@@ -417,17 +429,137 @@ def parse_erp_code() -> List[DocChunk]:
 
 
 # ---------------------------------------------------------------------------
-# 2. Построение графа знаний
+# 1.5. Бизнес-сценарии (Layer 1)
 # ---------------------------------------------------------------------------
+def parse_business_scenarios() -> List[DocChunk]:
+    """Извлекает бизнес-сценарии из структуры ИТС."""
+    scenarios = []
+    scenario_dirs = sorted(ITS_ROOT.glob("???--*.md")) if ITS_ROOT.exists() else []
+    
+    for md_file in scenario_dirs:
+        scenario_id = f"scenario_{md_file.stem}"
+        title = re.sub(r'^\d+--\d+\.\s*', '', md_file.stem)
+        title = title.replace('--', ': ')
+        
+        # Собираем подразделы (под-сценарии)
+        dir_name = md_file.with_suffix('').name
+        scenario_dir = ITS_ROOT / dir_name
+        sub_scenarios = []
+        if scenario_dir.exists():
+            for sub in sorted(scenario_dir.glob("*.md")):
+                sub_title = re.sub(r'^\d+--', '', sub.stem)
+                sub_id = f"scenario_{sub.stem}"
+                sub_scenarios.append(DocChunk(
+                    id=sub_id,
+                    title=sub_title,
+                    content=f"Под-сценарий: {sub_title}. Входит в: {title}",
+                    path=f"scenarios/{dir_name}/{sub.name}",
+                    layer=1,
+                    node_type='scenario',
+                    parent_id=scenario_id,
+                    level=1,
+                ))
+        
+        scenario_chunk = DocChunk(
+            id=scenario_id,
+            title=title,
+            content=f"Бизнес-сценарий: {title}. Включает под-сценарии: {len(sub_scenarios)}",
+            path=f"scenarios/{md_file.name}",
+            layer=1,
+            node_type='scenario',
+            children_ids=[s.id for s in sub_scenarios],
+            level=0,
+        )
+        scenarios.append(scenario_chunk)
+        scenarios.extend(sub_scenarios)
+    
+    print(f"  Создано сценариев: {len(scenarios)} (Layer 1)")
+    return scenarios
+
+
+def _find_entry_docs(scenario: DocChunk, metadata_chunks: List[DocChunk]) -> List[str]:
+    """Находит метаданные Layer 3, релевантные сценарию."""
+    keywords = re.findall(r'[А-ЯЁ][а-яё]+', scenario.title)
+    matches = []
+    for mc in metadata_chunks:
+        if any(kw.lower() in mc.title.lower() for kw in keywords):
+            if mc.node_type == 'metadata' and ('Document' in mc.path or 'Document' in str(type(mc))):
+                matches.append(mc.id)
+    return matches[:5]
+
+
+# ---------------------------------------------------------------------------
+# 1.6. Уточняющие узлы (Layer 2)
+# ---------------------------------------------------------------------------
+CLARIFY_TEMPLATES = [
+    ("Организация", "Для какой организации настраиваете процесс?", "Спр.Организации"),
+    ("Склад", "Какой склад используется? Производственный, оптовый, розничный?", "Спр.Склады"),
+    ("Подразделение", "Какое подразделение-исполнитель?", "Спр.СтруктураПредприятия"),
+    ("Номенклатура", "Какой вид номенклатуры: сырьё, материал, продукция?", "Спр.Номенклатура"),
+    ("Контрагент", "Какой контрагент / партнёр участвует?", "Спр.Контрагенты"),
+    ("Соглашение", "По какому соглашению / договору работаем?", "Спр.СоглашенияСКлиентами"),
+    ("Вид цены", "Какой вид цены применяется?", "Спр.ВидыЦен"),
+    ("Валюта", "В какой валюте ведётся учёт?", "Спр.Валюты"),
+    ("Период", "За какой период (месяц, квартал, год)?", None),
+    ("СтатусЗаказа", "Какой статус заказа: Формируется, К производству, Закрыт?", "Переч.СтатусыЗаказовНаПроизводство"),
+    ("ВидОбеспечения", "Какой способ обеспечения: производство, закупка, перемещение?", "Переч.ВариантыОбеспечения"),
+    ("Партия", "Нужно ли обособленное обеспечение (учёт по назначениям)?", None),
+]
+
+def generate_clarification_nodes() -> List[DocChunk]:
+    """Создаёт узлы-уточнения (Layer 2) на основе типовых вопросов."""
+    nodes = []
+    for cls_id, question, ref_metadata in CLARIFY_TEMPLATES:
+        node = DocChunk(
+            id=f"clarify_{cls_id}",
+            title=question,
+            content=f"Уточнение: {question}",
+            path=f"clarifications/{cls_id}",
+            layer=2,
+            node_type='clarification',
+        )
+        if ref_metadata:
+            node.entry_docs.append(ref_metadata)
+        nodes.append(node)
+    print(f"  Создано уточняющих узлов: {len(nodes)} (Layer 2)")
+    return nodes
+
+
+def link_scenario_to_clarifications(scenarios: List[DocChunk], clarifications: List[DocChunk],
+                                    metadata_chunks: List[DocChunk]) -> None:
+    """Связывает сценарии (L1) с уточнениями (L2) и метаданными (L3)."""
+    for sc in scenarios:
+        if sc.level > 0:
+            continue
+        # Все типовые уточнения применимы к любому сценарию
+        sc.clarifications = [c.id for c in clarifications[:8]]
+        
+        # Ищем релевантные документы Layer 3 по ключевым словам из названия сценария
+        keywords = re.findall(r'[А-ЯЁ][а-яё]+', sc.title)
+        doc_ids = []
+        for mc in metadata_chunks:
+            if mc.node_type != 'metadata':
+                continue
+            # Проверяем по заголовку и содержанию
+            title_lower = mc.title.lower()
+            path_lower = mc.path.lower()
+            for kw in keywords:
+                if kw.lower() in title_lower or kw.lower() in path_lower:
+                    if mc.id not in doc_ids:
+                        doc_ids.append(mc.id)
+                    break
+        sc.entry_docs = doc_ids[:10]
 def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
-    """Строит направленный граф знаний из чанков документации"""
+    """Строит 4-слойный граф знаний."""
     G = nx.DiGraph()
     chunk_map = {c.id: c for c in chunks}
     
-    print("  Добавление узлов...")
+    print("  Добавление узлов с атрибутами слоёв...")
     for c in chunks:
         G.add_node(c.id,
                    title=c.title,
+                   layer=c.layer,
+                   node_type=c.node_type,
                    level=c.level,
                    path=c.path,
                    terms=",".join(c.terms[:20]),
@@ -439,8 +571,32 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
             G.add_edge(c.parent_id, c.id, relation="parent_child", weight=1.0)
             G.add_edge(c.id, c.parent_id, relation="child_parent", weight=0.8)
     
+    print("  Ребра между слоями (inter-layer)...")
+    layer_edges = 0
+    for c in chunks:
+        # L1 → L3: entry_docs (сценарий → документы)
+        if c.layer == 1 and c.entry_docs:
+            for target_id in c.entry_docs:
+                if target_id in chunk_map and not G.has_edge(c.id, target_id):
+                    G.add_edge(c.id, target_id, relation="entry_doc", weight=0.9)
+                    layer_edges += 1
+        # L1 → L2: clarifications (сценарий → уточняющие вопросы)
+        if c.layer == 1 and c.clarifications:
+            for target_id in c.clarifications:
+                if target_id in chunk_map and not G.has_edge(c.id, target_id):
+                    G.add_edge(c.id, target_id, relation="clarification", weight=0.8)
+                    layer_edges += 1
+        # L2 → L3: entry_docs на clarification-узлах (уточнение → реквизит)
+        if c.layer == 2 and c.entry_docs:
+            for target_id in c.entry_docs:
+                if target_id in chunk_map and not G.has_edge(c.id, target_id):
+                    G.add_edge(c.id, target_id, relation="clarifies_field", weight=0.7)
+                    layer_edges += 1
+        # L3 → L4: metadata → knowledge (через shared-terms / refs)
+    
+    print(f"  Добавлено {layer_edges} межслойных ребер")
+    
     print("  Ребра cross-references...")
-    # Теперь refs уже разрешены через manifest.json -> chunk_id
     ref_count = 0
     for c in chunks:
         for target_id in c.refs:
@@ -451,11 +607,9 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
                     break
         if ref_count > 5000:
             break
-    
     print(f"  Добавлено {ref_count} ребер cross-references")
     
     print("  Ребра shared-terms (через инвертированный индекс)...")
-    # Инвертированный индекс: термин -> список chunk_id
     term_index = {}
     for c in chunks:
         seen_terms = set()
@@ -473,7 +627,6 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
     for term, cids in term_index.items():
         if len(cids) < 2:
             continue
-        # Для каждого термина соединяем все чанки, где он встречается
         for i in range(len(cids)):
             for j in range(i+1, len(cids)):
                 c1, c2 = cids[i], cids[j]
@@ -489,10 +642,13 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
                 break
         if shared_edges > 10000:
             break
-    
     print(f"  Добавлено {shared_edges} ребер shared-terms")
     
-    print(f"\n[2/5] Граф построен: {G.number_of_nodes()} узлов, {G.number_of_edges()} ребер")
+    print(f"\n[2/5] Граф построен: {G.number_of_nodes()} узлов, {G.number_of_edges()} ребер, "
+          f"{len([n for n in G.nodes if G.nodes[n].get('layer')==1])} сценариев, "
+          f"{len([n for n in G.nodes if G.nodes[n].get('layer')==2])} уточнений, "
+          f"{len([n for n in G.nodes if G.nodes[n].get('layer')==3])} метаданных, "
+          f"{len([n for n in G.nodes if G.nodes[n].get('layer')==4])} чанков знаний")
     return G
 
 # ---------------------------------------------------------------------------
@@ -596,7 +752,7 @@ def save_data(chunks: List[DocChunk], graph: nx.DiGraph, vectors: np.ndarray, no
     """Сохраняет все данные на диск"""
     print(f"\n[4/5] Сохранение данных...")
     
-    # Чанки
+    # Чанки (полные)
     chunks_data = []
     for c in chunks:
         d = asdict(c)
@@ -604,25 +760,60 @@ def save_data(chunks: List[DocChunk], graph: nx.DiGraph, vectors: np.ndarray, no
     with open(CHUNKS_FILE, "w", encoding="utf-8") as f:
         json.dump(chunks_data, f, ensure_ascii=False, indent=1)
     
+    # Чанки (только метаданные для быстрой загрузки)
+    chunks_meta = {c.id: {"title": c.title, "path": c.path} for c in chunks}
+    with open(CHUNKS_META_FILE, "w", encoding="utf-8") as f:
+        json.dump(chunks_meta, f, ensure_ascii=False)
+    
     # Node IDs
     with open(NODES_FILE, "w", encoding="utf-8") as f:
         json.dump(node_ids, f)
     
-    # Векторы
-    np.save(VECTORS_FILE, vectors)
+    # Векторы (float32 для быстрой загрузки)
+    np.save(VECTORS_FILE, vectors.astype(np.float32))
     
-    # Граф
+    # Граф (pickle — быстрее graphml)
+    with open(GRAPH_PICKLE, "wb") as f:
+        pickle.dump(graph, f)
     nx.write_graphml(graph, GRAPH_FILE)
     
     print(f"  Чанки: {CHUNKS_FILE}")
     print(f"  Векторы: {VECTORS_FILE}")
-    print(f"  Граф: {GRAPH_FILE}")
+    print(f"  Граф: {GRAPH_PICKLE}")
 
 
-def load_data() -> Tuple[List[DocChunk], Optional[nx.DiGraph], Optional[np.ndarray], Optional[List[str]]]:
-    """Загружает данные с диска"""
+def load_data(lightweight=False) -> Tuple[List[DocChunk], Optional[nx.DiGraph], Optional[np.ndarray], Optional[List[str]]]:
+    """Загружает данные с диска.
+    
+    lightweight=True: не загружает полный текст чанков и граф (быстрый поиск).
+    """
     if not CHUNKS_FILE.exists():
         return [], None, None, None
+    
+    if lightweight:
+        # Быстрая загрузка: только метаданные + векторы
+        chunks_meta = {}
+        if CHUNKS_META_FILE.exists():
+            with open(CHUNKS_META_FILE, "r", encoding="utf-8") as f:
+                chunks_meta = json.load(f)
+        else:
+            # Fallback: загружаем полные чанки, но берём только метаданные
+            with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
+                chunks_data = json.load(f)
+            chunks_meta = {d["id"]: {"title": d["title"], "path": d["path"]} for d in chunks_data}
+        
+        chunks = [DocChunk(id=k, title=v["title"], path=v["path"], content="")
+                  for k, v in chunks_meta.items()]
+        
+        vectors = None
+        node_ids = None
+        if VECTORS_FILE.exists() and NODES_FILE.exists():
+            vectors = np.load(VECTORS_FILE)
+            with open(NODES_FILE, "r") as f:
+                node_ids = json.load(f)
+        
+        print(f"Загружено (быстро): {len(chunks)} чанков (метаданные), векторы {vectors.shape if vectors is not None else '—'}")
+        return chunks, None, vectors, node_ids
     
     with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
         chunks_data = json.load(f)
@@ -630,7 +821,10 @@ def load_data() -> Tuple[List[DocChunk], Optional[nx.DiGraph], Optional[np.ndarr
     chunks = [DocChunk(**d) for d in chunks_data]
     
     graph = None
-    if GRAPH_FILE.exists():
+    if GRAPH_PICKLE.exists():
+        with open(GRAPH_PICKLE, "rb") as f:
+            graph = pickle.load(f)
+    elif GRAPH_FILE.exists():
         graph = nx.read_graphml(GRAPH_FILE)
     
     vectors = None
@@ -662,22 +856,19 @@ class GraphRAG:
     
     def search(self, query: str, top_k: int = None, graph_expand: int = 10) -> Dict:
         """
-        Graph RAG поиск:
-        1. Векторный поиск по query → релевантные узлы
-        2. Расширение по графу: соседи релевантных узлов
-        3. Сбор контекста с полным текстом
+        4-слойный Graph RAG поиск:
+        1. Векторный поиск по query → находит сценарии (L1), метаданные (L3), знания (L4)
+        2. Расширение по графу через межслойные ребра (entry_doc, clarification, parent_child, references)
+        3. Возвращает результаты, сгруппированные по слоям
         """
-        # Авто-подбор top_k в зависимости от вопроса
         if top_k is None:
             word_count = len(query.split())
             top_k = max(5, min(20, word_count * 3))
         
         query_vec = self.embedder.encode([query])[0]
-        
         sims = cosine_similarity([query_vec], self.vectors)[0]
         
         top_indices = np.argsort(sims)[::-1]
-        # Отсекаем по порогу и берем top_k
         top_indices = [i for i in top_indices if sims[i] > 0.03][:top_k]
         
         # Собираем результаты векторного поиска
@@ -692,25 +883,35 @@ class GraphRAG:
                     "path": chunk.path,
                     "score": float(sims[idx]),
                     "content": chunk.content,
-                    "source": "vector"
+                    "source": "vector",
+                    "layer": chunk.layer,
+                    "node_type": chunk.node_type,
                 })
         
-        # Расширение по графу: предки, потомки, shared-terms
+        # Расширение по графу: межслойные и внутрислойные связи
         graph_expanded_nodes = {}
         for vr in vector_results:
             nid = vr["node_id"]
-            if nid in self.graph:
+            if self.graph is not None and nid in self.graph:
                 for pred in self.graph.predecessors(nid):
                     if pred not in graph_expanded_nodes:
                         graph_expanded_nodes[pred] = 0.6
                 for succ in self.graph.successors(nid):
                     edge_data = self.graph.get_edge_data(nid, succ)
                     if edge_data:
-                        if edge_data.get("relation") == "parent_child":
+                        rel = edge_data.get("relation", "")
+                        # Приоритет: межслойные связи > parent_child > references > shared_terms
+                        if rel == "entry_doc":
+                            graph_expanded_nodes[succ] = 0.95
+                        elif rel == "clarification":
+                            graph_expanded_nodes[succ] = 0.9
+                        elif rel == "clarifies_field":
+                            graph_expanded_nodes[succ] = 0.85
+                        elif rel == "parent_child":
                             graph_expanded_nodes[succ] = 0.7
-                        elif edge_data.get("relation") == "references":
+                        elif rel == "references":
                             graph_expanded_nodes[succ] = 0.5
-                        elif edge_data.get("relation") == "shared_terms":
+                        elif rel == "shared_terms":
                             graph_expanded_nodes[succ] = 0.4
         
         graph_results = []
@@ -729,7 +930,9 @@ class GraphRAG:
                     "path": chunk.path,
                     "score": score * boost,
                     "content": chunk.content,
-                    "source": "graph"
+                    "source": "graph",
+                    "layer": chunk.layer,
+                    "node_type": chunk.node_type,
                 })
         
         graph_results.sort(key=lambda x: x["score"], reverse=True)
@@ -764,13 +967,26 @@ class GraphRAG:
         
         workflow = self._extract_workflow(all_results, query)
         
+        # Группируем результаты по слоям
+        by_layer = {1: [], 2: [], 3: [], 4: []}
+        for r in all_results:
+            layer = r.get("layer", 4)
+            if layer in by_layer:
+                by_layer[layer].append(r)
+        
         return {
             "query": query,
             "vector_results": vector_results,
             "graph_expanded": graph_results,
             "context": context,
             "workflow": workflow,
-            "all_nodes": list(set(r["node_id"] for r in all_results))
+            "all_nodes": list(set(r["node_id"] for r in all_results)),
+            "by_layer": {
+                "scenarios": by_layer[1][:5],
+                "clarifications": by_layer[2][:10],
+                "metadata": by_layer[3][:10],
+                "knowledge": by_layer[4][:10],
+            }
         }
     
     def _extract_workflow(self, results: List[Dict], query: str) -> List[str]:
@@ -862,6 +1078,52 @@ class GraphRAG:
         sections_text = "; ".join(sections)
         
         return f"Ты эксперт 1С ERP. На основе документации ({sections_text}) ответь на вопрос: {query}\n\nДай пошаговую инструкцию по настройке: что создать, где найти в меню, какие реквизиты заполнить."
+
+    def generate_clarifying_questions(self, query: str, result: Dict,
+                                       llm: 'LlmClient') -> str:
+        """Генерирует уточняющие вопросы на основе контекста графа"""
+        prompt = f"""Ты — консультант по 1С:ERP. Пользователь хочет: {query}
+
+На основе документации 1С, сформулируй 2-4 коротких уточняющих вопроса, чтобы понять:
+- какой именно объект/документ 1С ему нужен
+- в каком разрезе (организация, подразделение, период)
+- какие специфические настройки или реквизиты важны
+
+Релевантные разделы документации:
+{'; '.join(r['title'] for r in result['vector_results'][:5])}
+
+Напиши ТОЛЬКО вопросы, по одному на строку, без нумерации."""
+        return llm.prompt(prompt)
+
+    def generate_instruction_with_context(self, query: str, answers: str,
+                                           result: Dict, llm: 'LlmClient') -> str:
+        """Генерирует итоговую инструкцию с учётом уточнений"""
+        prompt = f"""Ты — эксперт 1С:ERP. Пользователь хочет: {query}
+
+Дополнительный контекст от пользователя:
+{answers}
+
+Доступные объекты метаданных (справочники, документы, реквизиты):
+"""
+        # Добавляем информацию о релевантных объектах метаданных из ERPcode
+        meta_objects = []
+        for r in result["vector_results"][:10]:
+            if r['path'].startswith('ERPcode/'):
+                meta_objects.append(f"- {r['title']}")
+        if meta_objects:
+            prompt += "\n".join(meta_objects[:10])
+        
+        prompt += """
+
+Дай подробную пошаговую инструкцию:
+1. Какой объект/документ использовать
+2. Где находится в меню 1С
+3. Какие реквизиты заполнить
+4. Какие настройки включить
+5. Последовательность шагов
+
+Если информации недостаточно — напиши что именно нужно уточнить."""
+        return llm.prompt(prompt)
     
     def build_prompt(self, query: str) -> str:
         """Строит промпт для LLM на основе Graph RAG контекста"""
@@ -1016,16 +1278,34 @@ class LlmClient:
 # 7. CLI команды
 # ---------------------------------------------------------------------------
 def cmd_build():
-    """Сборка графа знаний и эмбеддингов"""
+    """Сборка 4-слойного графа знаний"""
     print("=" * 60)
-    print("  1С ERP Graph RAG - Построение графа знаний")
+    print("  1С ERP Graph RAG - Построение 4-слойного графа знаний")
     print("=" * 60)
     
-    # Парсим документацию
+    # Layer 4: Парсим документацию ИТС
+    print("\n[Layer 4] Парсинг документации...")
     chunks = parse_its_markdown()
-    # Парсим код конфигурации 1С ERP
+    
+    # Layer 3: Парсим код конфигурации 1С ERP
+    print("\n[Layer 3] Парсинг метаданных...")
     code_chunks = parse_erp_code()
     chunks.extend(code_chunks)
+    
+    # Layer 1: Парсим бизнес-сценарии
+    print("\n[Layer 1] Извлечение бизнес-сценариев...")
+    metadata_chunks = [c for c in chunks if c.node_type == 'metadata']
+    scenarios = parse_business_scenarios()
+    chunks.extend(scenarios)
+    
+    # Layer 2: Генерация уточняющих узлов
+    print("\n[Layer 2] Генерация уточняющих вопросов...")
+    clarifications = generate_clarification_nodes()
+    chunks.extend(clarifications)
+    
+    # Связываем слои
+    print("\n[Inter-layer] Связывание сценариев с уточнениями и документами...")
+    link_scenario_to_clarifications(scenarios, clarifications, metadata_chunks)
     
     graph = build_knowledge_graph(chunks)
     
@@ -1041,19 +1321,27 @@ def cmd_build():
     print(f"  Узлов графа: {graph.number_of_nodes()}")
     print(f"  Ребер графа: {graph.number_of_edges()}")
     
-    # Плотность графа
+    by_layer = {}
+    for c in chunks:
+        by_layer.setdefault(c.layer, 0)
+        by_layer[c.layer] += 1
+    for layer in sorted(by_layer):
+        print(f"  Слой {layer}: {by_layer[layer]} узлов")
+    
     density = nx.density(graph)
     print(f"  Плотность графа: {density:.4f}")
     
-    # Количество связей
+    inter_layer = sum(1 for _, _, d in graph.edges(data=True) 
+                      if d.get("relation") in ("entry_doc", "clarification", "clarifies_field"))
     shared = sum(1 for _, _, d in graph.edges(data=True) if d.get("relation") == "shared_terms")
     parent_child = sum(1 for _, _, d in graph.edges(data=True) if d.get("relation") in ("parent_child", "child_parent"))
     refs = sum(1 for _, _, d in graph.edges(data=True) if d.get("relation") == "references")
     print(f"  Ребра parent-child: {parent_child}")
     print(f"  Ребра cross-references: {refs}")
     print(f"  Ребра shared-terms: {shared}")
+    print(f"  Ребра межслойные: {inter_layer}")
     
-    print("\nГраф знаний построен!")
+    print("\n4-слойный граф знаний построен!")
 
 
 def cmd_query(query: str, top_k: int = 10):
@@ -1155,8 +1443,93 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
     uvicorn.run(app, host=host, port=port)
 
 
+def cmd_clarify():
+    """Режим с уточняющими вопросами: пользователь -> вопросы -> ответы -> инструкция"""
+    chunks, graph, vectors, node_ids = load_data()
+    if not chunks:
+        print("Данные не найдены. Сначала выполните: python graph_rag_1c_erp.py build")
+        return
+    
+    embedder = Embedder(vectorizer_path=TFIDF_FILE)
+    rag = GraphRAG(chunks, graph, vectors, node_ids, embedder)
+    
+    print("=" * 60)
+    print("  1С ERP — Уточняющий режим")
+    print("=" * 60)
+    print("  Опишите что хотите сделать — я задам уточняющие")
+    print("  вопросы и сформирую точную инструкцию.")
+    print("  'exit' для выхода.")
+    print()
+    
+    while True:
+        try:
+            q = input("\nВаша задача: ").strip()
+            if q.lower() in ("exit", "quit", "q"):
+                break
+            if not q:
+                continue
+            
+            # 1. Поиск по графу
+            print("\n--- АНАЛИЗ ЗАПРОСА ---")
+            result = rag.search(q)
+            
+            print(f"\nНайдено разделов: {len(result['vector_results'])}")
+            for i, r in enumerate(result["vector_results"][:3]):
+                print(f"  [{i+1}] {r['title']}")
+            
+            # 2. Генерация уточняющих вопросов
+            provider = "ollama"
+            model = "qwen2.5:7b"
+            
+            with LlmClient(provider=provider, model=model) as llm:
+            
+                print(f"\n--- УТОЧНЯЮЩИЕ ВОПРОСЫ ({provider}/{model}) ---")
+                print("  (генерация вопросов...)")
+                
+                questions_text = rag.generate_clarifying_questions(q, result, llm)
+                questions = [s.strip() for s in questions_text.split('\n') if s.strip() and not s.startswith('---')]
+                
+                if not questions:
+                    questions = [
+                        "Для какой организации / предприятия настраиваете?",
+                        "Какой период (год, месяц)?",
+                        "Есть ли особые требования или специфика?"
+                    ]
+                
+                print(f"\nУточняющие вопросы ({len(questions)}):")
+                print()
+                
+                answers = {}
+                for i, question in enumerate(questions):
+                    ans = input(f"  Вопрос {i+1}: {question}\n  Ответ: ").strip()
+                    answers[f"q{i+1}"] = {"question": question, "answer": ans or "(не указано)"}
+                
+                # 3. Финальная генерация
+                print(f"\n--- ФОРМИРУЮ ИНСТРУКЦИЮ ---")
+                print("  (ожидайте 30-120 секунд)")
+                
+                answers_text = "\n".join(f"Вопрос: {v['question']}\nОтвет: {v['answer']}" for v in answers.values())
+                instruction = rag.generate_instruction_with_context(q, answers_text, result, llm)
+            
+            print("\n" + "=" * 60)
+            print("  ИНСТРУКЦИЯ")
+            print("=" * 60)
+            print()
+            print(instruction)
+            print()
+            print("=" * 60)
+            print(f"  Длина: {len(instruction)} символов")
+            print()
+            
+        except KeyboardInterrupt:
+            print()
+            break
+        except Exception as e:
+            print(f"Ошибка: {e}")
+
+
 def cmd_interactive():
-    """Интерактивный режим: поиск + генерация инструкции"""
+    """Интерактивный режим: поиск + генерация инструкции (старый, без уточнений)"""
     chunks, graph, vectors, node_ids = load_data()
     if not chunks:
         print("Данные не найдены. Сначала выполните: python graph_rag_1c_erp.py build")
@@ -1224,6 +1597,8 @@ def cmd_interactive():
                 instruction = llm.prompt(prompt)
             except Exception as e:
                 instruction = f"[Ошибка] {e}"
+            finally:
+                llm.close()
             
             print("\n" + "=" * 60)
             print("  ИНСТРУКЦИЯ")
@@ -1288,7 +1663,10 @@ if __name__ == "__main__":
     p_serve.add_argument("--host", type=str, default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8321)
     
-    p_interactive = sub.add_parser("interactive", help="Интерактивный режим")
+    p_interactive = sub.add_parser("interactive", help="Интерактивный режим (поиск + генерация)")
+    p_interactive.add_argument("--mode", type=str, default="clarify",
+                               choices=["clarify", "direct"],
+                               help="clarify — с уточняющими вопросами (по умолчанию), direct — прямой ответ")
     
     p_instruct = sub.add_parser("instruct", help="Сгенерировать инструкцию через LLM")
     p_instruct.add_argument("query", type=str, help="Текст запроса")
@@ -1304,7 +1682,10 @@ if __name__ == "__main__":
     elif args.command == "serve":
         cmd_serve(args.host, args.port)
     elif args.command == "interactive":
-        cmd_interactive()
+        if args.mode == "clarify":
+            cmd_clarify()
+        else:
+            cmd_interactive()
     elif args.command == "instruct":
         cmd_instruct(args.query, args.provider, args.model)
     else:
