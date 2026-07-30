@@ -16,6 +16,8 @@ import re
 import json
 import hashlib
 import argparse
+import shutil
+import subprocess
 import sys
 # Поддержка UTF-8 для Windows
 if sys.stdout.encoding != 'utf-8':
@@ -32,7 +34,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ---------------------------------------------------------------------------
 # Конфигурация
 # ---------------------------------------------------------------------------
-ITS_ROOT = Path(r"C:\Users\Y.Karpova\Desktop\RAW")
+ITS_ROOT = Path(__file__).parent / "001--1С-ERP Управление предприятием 2, редакция 2.5"
 DATA_DIR = Path(__file__).parent / "graph_rag_data"
 GRAPH_FILE = DATA_DIR / "knowledge_graph.graphml"
 CHUNKS_FILE = DATA_DIR / "chunks.json"
@@ -208,6 +210,211 @@ def parse_its_markdown() -> List[DocChunk]:
     
     print(f"  Создано чанков: {len(chunks)}")
     return chunks
+
+# ---------------------------------------------------------------------------
+# 1b. Парсер XML-выгрузки конфигурации 1С ERP (ERPcode/)
+# ---------------------------------------------------------------------------
+ERPCODE_DIR = Path(__file__).parent / "ERPcode"
+# Маппинг: имя папки -> человекочитаемый тип метаданных
+METADATA_TYPE_NAMES = {
+    "Catalogs": "Справочник",
+    "Documents": "Документ",
+    "InformationRegisters": "Регистр сведений",
+    "AccumulationRegisters": "Регистр накопления",
+    "AccountingRegisters": "Регистр бухгалтерии",
+    "CalculationRegisters": "Регистр расчета",
+    "Enums": "Перечисление",
+    "ChartsOfAccounts": "План счетов",
+    "ChartsOfCharacteristicTypes": "План видов характеристик",
+    "ChartsOfCalculationTypes": "План видов расчета",
+    "BusinessProcesses": "Бизнес-процесс",
+    "Tasks": "Задача",
+    "Reports": "Отчет",
+    "DataProcessors": "Обработка",
+    "Constants": "Константа",
+    "Subsystems": "Подсистема",
+    "CommonModules": "Общий модуль",
+    "CommonForms": "Общая форма",
+    "CommonCommands": "Общая команда",
+    "CommonAttributes": "Общий реквизит",
+    "ExchangePlans": "План обмена",
+    "FunctionalOptions": "Функциональная опция",
+    "Roles": "Роль",
+    "DocumentJournals": "Журнал документов",
+    "Filters": "Критерий отбора",
+    "HTTPServices": "HTTP-сервис",
+    "WebServices": "Web-сервис",
+    "ScheduledJobs": "Регламентное задание",
+    "SessionParameters": "Параметр сеанса",
+    "SettingsStorages": "Хранилище настроек",
+    "Languages": "Язык",
+    "Definitions": "Определяемый тип",
+}
+
+def parse_erp_code() -> List[DocChunk]:
+    """Парсит XML-выгрузку конфигурации 1С ERP (ERPcode/) в DocChunk.
+    
+    Из каждого XML-файла извлекает:
+    - название объекта метаданных (Name)
+    - синоним (Synonym)
+    - реквизиты (Attributes) с их типами
+    - табличные части (TabularSections)
+    - ссылки на другие объекты метаданных
+    """
+    import xml.etree.ElementTree as ET
+    
+    chunks = []
+    erp_dir = ERPCODE_DIR
+    
+    if not erp_dir.exists():
+        print(f"  Папка ERPcode не найдена: {erp_dir}")
+        return chunks
+    
+    ns = {
+        'v8': 'http://v8.1c.ru/8.1/data/core',
+        'cfg': 'http://v8.1c.ru/8.1/data/enterprise/current-config',
+        'xr': 'http://v8.1c.ru/8.3/xcf/readable',
+    }
+    
+    # Парсим только ключевые типы метаданных (без общих модулей, форм, стилей и т.д.)
+    key_dirs = {'Catalogs', 'Documents', 'Enums', 'InformationRegisters',
+                'AccumulationRegisters', 'AccountingRegisters', 'CalculationRegisters',
+                'ChartsOfAccounts', 'ChartsOfCharacteristicTypes', 'ChartsOfCalculationTypes',
+                'BusinessProcesses', 'Tasks', 'Reports', 'DataProcessors',
+                'Constants', 'Subsystems', 'ExchangePlans', 'FunctionalOptions',
+                'Roles', 'Filters', 'HTTPServices', 'WebServices', 'ScheduledJobs',
+                'SessionParameters', 'SettingsStorages'}
+    
+    xml_files = []
+    for d in key_dirs:
+        dir_path = erp_dir / d
+        if dir_path.exists():
+            # Только .xml файлы верхнего уровня (не подпапки с формами)
+            for f in dir_path.glob("*.xml"):
+                # Пропускаем "ПрисоединенныеФайлы" — служебные
+                if 'ПрисоединенныеФайлы' in f.stem:
+                    continue
+                xml_files.append(f)
+    
+    print(f"  Найдено XML-файлов конфигурации: {len(xml_files)}")
+    
+    # Регекс для быстрого извлечения информации без полного DOM-парсинга
+    # Ищем: имя, синоним, реквизиты
+    name_re = re.compile(r'<Name>([^<]+)</Name>')
+    synonym_re = re.compile(r'<v8:content>([^<]+)</v8:content>')
+    attr_re = re.compile(r'<Attribute[^>]*>.*?<Name>([^<]+)</Name>.*?<v8:content>([^<]+)</v8:content>.*?</Attribute>', re.DOTALL)
+    attr_type_re = re.compile(r'cfg:(CatalogRef|DocumentRef|EnumRef|InformationRegisterRef|AccumulationRegisterRef|ChartOfAccountsRef|BusinessProcessRef|TaskRef|DataProcessorRef|ReportRef|ConstantRef|ExchangePlanRef|FilterRef|HTTPServiceRef|WebServiceRef|ScheduledJobRef|SessionParameterRef|SettingsStorageRef|ChartOfCharacteristicTypesRef|ChartOfCalculationTypesRef|AccountingRegisterRef|CalculationRegisterRef)\.([A-Za-zА-Яа-яЁё]+)')
+    ts_re = re.compile(r'<TabularSection[^>]*>.*?<Name>([^<]+)</Name>.*?<v8:content>([^<]+)</v8:content>.*?</TabularSection>', re.DOTALL)
+    meta_type_re = re.compile(r'<(Catalog|Document|InformationRegister|AccumulationRegister|AccountingRegister|CalculationRegister|Enum|ChartOfAccounts|ChartOfCharacteristicTypes|ChartOfCalculationTypes|BusinessProcess|Task|Report|DataProcessor|Constant|Subsystem|ExchangePlan|FunctionalOption|Role|Filter|HTTPService|WebService|ScheduledJob|SessionParameter|SettingsStorage)\b')
+    comment_re = re.compile(r'<Comment([^>]*)/>|<Comment>([^<]*)</Comment>')
+    
+    objects_info = []
+    for fpath in xml_files:
+        meta_type_dir = fpath.parent.name
+        meta_type_name = METADATA_TYPE_NAMES.get(meta_type_dir, meta_type_dir)
+        
+        try:
+            text = fpath.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        
+        # Быстрая проверка, что это нужный тип метаданных
+        if not meta_type_re.search(text):
+            continue
+        
+        # Имя объекта
+        name_match = name_re.search(text)
+        if not name_match:
+            continue
+        obj_name = name_match.group(1)
+        
+        # Иерархический путь
+        meta_path = f"ERPcode/{meta_type_dir}/{obj_name}"
+        
+        # Синоним (первый русский)
+        synonyms = synonym_re.findall(text)
+        synonym = synonyms[0] if synonyms else obj_name
+        
+        # Комментарий
+        comment_match = comment_re.search(text)
+        comment = comment_match.group(2) if comment_match and comment_match.group(2) else ''
+        if not comment and comment_match:
+            comment = comment_match.group(0) if comment_match.group(1) == '' else ''
+            # <Comment/> or <Comment></Comment> means empty comment
+            comment = ''
+        
+        # Реквизиты
+        attributes = []
+        refs = []
+        for attr_match in attr_re.finditer(text):
+            attr_name = attr_match.group(1)
+            attr_synonym = attr_match.group(2)
+            
+            # Ищем тип этого реквизита: 200 символов после <Name>
+            attr_pos = text.find(f'<Name>{attr_name}</Name>', attr_match.start())
+            type_search = text[attr_pos:attr_pos+500]
+            
+            type_refs = attr_type_re.findall(type_search)
+            type_str = '; '.join(f"{ref[0]}.{ref[1]}" for ref in type_refs) if type_refs else ''
+            
+            for ref_type, ref_obj in type_refs:
+                # Преобразуем название типа папки
+                folder_name = ref_type.replace('Ref', '') + 's'
+                ref_target = f"ERPcode/{folder_name}/{ref_obj}"
+                if ref_target not in refs:
+                    refs.append(ref_target)
+            
+            attr_desc = f"{attr_synonym} ({attr_name})"
+            if type_str:
+                simple = type_str.replace('CatalogRef.', 'Спр.').replace('DocumentRef.', 'Док.').replace('EnumRef.', 'Переч.').replace('InformationRegisterRef.', 'РС.').replace('AccumulationRegisterRef.', 'РН.')
+                attr_desc += f" — {simple}"
+            attributes.append(attr_desc)
+        
+        # Табличные части
+        tabular_sections = []
+        for ts_match in ts_re.finditer(text):
+            tabular_sections.append(ts_match.group(2))
+        
+        # Формируем содержимое
+        content_parts = [f"Объект метаданных: {meta_type_name}"]
+        content_parts.append(f"Имя: {obj_name}")
+        content_parts.append(f"Синоним: {synonym}")
+        if comment:
+            content_parts.append(f"Описание: {comment}")
+        if attributes:
+            content_parts.append(f"\nРеквизиты ({len(attributes)}):")
+            for a in attributes[:50]:  # максимум 50 реквизитов
+                content_parts.append(f"  - {a}")
+        if tabular_sections:
+            content_parts.append(f"\nТабличные части ({len(tabular_sections)}):")
+            for ts in tabular_sections[:10]:
+                content_parts.append(f"  - {ts}")
+        
+        content = "\n".join(content_parts)
+        
+        objects_info.append({
+            'id': meta_path,
+            'title': f"{meta_type_name} {synonym}",
+            'content': content,
+            'path': meta_path,
+            'refs': refs,
+            'level': 2,
+        })
+    
+    for obj in objects_info:
+        chunks.append(DocChunk(
+            id=obj['id'],
+            title=obj['title'],
+            content=obj['content'],
+            path=obj['path'],
+            refs=obj['refs'],
+            terms=[],
+            level=obj['level'],
+        ))
+    
+    print(f"  Создано чанков из кода: {len(chunks)}")
+    return chunks
+
 
 # ---------------------------------------------------------------------------
 # 2. Построение графа знаний
@@ -618,6 +825,44 @@ class GraphRAG:
         
         return all_steps[:30]
     
+    def generate_instruction(self, query: str, provider: str = "deepseek",
+                              model: str = "deepseek-chat") -> Dict:
+        """Полный пайплайн: Graph RAG поиск → промпт → генерация инструкции через LLM"""
+        result = self.search(query)
+        
+        # Для локальных моделей (Ollama) — короткий промпт,
+        # для облачных — полный промпт с контекстом
+        if provider == "ollama":
+            prompt = self._build_compact_prompt(query, result)
+        else:
+            prompt = self.build_prompt(query)
+        
+        llm = LlmClient(provider=provider, model=model)
+        try:
+            instruction = llm.prompt(prompt)
+        except Exception as e:
+            instruction = f"Ошибка генерации инструкции: {e}"
+        finally:
+            llm.close()
+        
+        return {
+            "query": query,
+            "instruction": instruction,
+            "context": result["context"],
+            "workflow": result["workflow"],
+            "vector_results": result["vector_results"][:5],
+            "graph_expanded": result["graph_expanded"]
+        }
+    
+    def _build_compact_prompt(self, query: str, result: Dict) -> str:
+        """Компактный промпт для маленьких локальных моделей (Ollama)"""
+        sections = []
+        for r in result["vector_results"][:3]:
+            sections.append(r["title"])
+        sections_text = "; ".join(sections)
+        
+        return f"Ты эксперт 1С ERP. На основе документации ({sections_text}) ответь на вопрос: {query}\n\nДай пошаговую инструкцию по настройке: что создать, где найти в меню, какие реквизиты заполнить."
+    
     def build_prompt(self, query: str) -> str:
         """Строит промпт для LLM на основе Graph RAG контекста"""
         result = self.search(query)
@@ -653,7 +898,122 @@ class GraphRAG:
 
 
 # ---------------------------------------------------------------------------
-# 6. CLI команды
+# 6. LLM клиент для генерации инструкций (pi.dev / Ollama)
+# ---------------------------------------------------------------------------
+class LlmClient:
+    """Клиент для вызова LLM через pi.dev (облачные провайдеры) или Ollama (локально).
+    
+    Поддерживает:
+    - pi.dev: DeepSeek, OpenAI, Anthropic, Google Gemini и др.
+    - Ollama: локальные модели (qwen2.5, llama3, и т.д.)
+    """
+    
+    def __init__(self, provider: str = "ollama", model: str = "qwen2.5:1.5b",
+                 no_session: bool = True, timeout: int = 600):
+        self.provider = provider
+        self.model = model
+        self.no_session = no_session
+        self.timeout = timeout
+    
+    def prompt(self, message: str) -> str:
+        if self.provider == "ollama":
+            return self._prompt_ollama(message)
+        else:
+            return self._prompt_pi(message)
+    
+    def _prompt_ollama(self, message: str) -> str:
+        """Отправляет промпт в локальную модель Ollama"""
+        try:
+            import urllib.request
+            import urllib.error
+            
+            data = json.dumps({
+                "model": self.model,
+                "prompt": message,
+                "stream": False,
+                "options": {
+                    "temperature": 0.3,
+                    "num_predict": 4096
+                }
+            }).encode("utf-8")
+            
+            req = urllib.request.Request(
+                "http://localhost:11434/api/generate",
+                data=data,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            
+            return result.get("response", "").strip()
+        except Exception as e:
+            return f"[Ошибка Ollama] {e}"
+    
+    def _prompt_pi(self, message: str) -> str:
+        """Отправляет промпт через pi -p (через файл) и возвращает полный текст ответа"""
+        import tempfile
+        
+        pi_path = self._resolve_pi()
+        
+        # Пишем промпт во временный файл (обходим ограничение длины командной строки Windows)
+        tmp = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".md", delete=False)
+        tmp.write(message)
+        tmp_path = tmp.name
+        tmp.close()
+        
+        try:
+            args = [pi_path, "-p", f"@{tmp_path}", "--provider", self.provider, "--model", self.model]
+            if self.no_session:
+                args.append("--no-session")
+            
+            env = os.environ.copy()
+            env["PI_TELEMETRY"] = "0"
+            
+            result = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=self.timeout,
+                env=env
+            )
+            
+            if result.returncode != 0:
+                error_msg = result.stderr.strip() or result.stdout.strip() or f"pi exit code {result.returncode}"
+                return f"[Ошибка pi.dev] {error_msg}"
+            
+            return result.stdout.strip()
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+    
+    @staticmethod
+    def _resolve_pi() -> str:
+        """Находит pi/pi.cmd в PATH или в APPDATA\\npm"""
+        for name in ("pi.cmd", "pi"):
+            which = shutil.which(name)
+            if which:
+                return which
+        appdata_pi = os.path.join(os.environ.get("APPDATA", ""), "npm", "pi.cmd")
+        if os.path.isfile(appdata_pi):
+            return appdata_pi
+        return "pi"
+    
+    def close(self):
+        pass
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args):
+        self.close()
+
+
+# ---------------------------------------------------------------------------
+# 7. CLI команды
 # ---------------------------------------------------------------------------
 def cmd_build():
     """Сборка графа знаний и эмбеддингов"""
@@ -661,7 +1021,12 @@ def cmd_build():
     print("  1С ERP Graph RAG - Построение графа знаний")
     print("=" * 60)
     
+    # Парсим документацию
     chunks = parse_its_markdown()
+    # Парсим код конфигурации 1С ERP
+    code_chunks = parse_erp_code()
+    chunks.extend(code_chunks)
+    
     graph = build_knowledge_graph(chunks)
     
     embedder = Embedder(vectorizer_path=TFIDF_FILE)
@@ -765,6 +1130,14 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
             "prompt": prompt
         }
     
+    @app.get("/instruct")
+    @app.post("/instruct")
+    def instruct_endpoint(q: str = "", provider: str = "deepseek", model: str = "deepseek-chat"):
+        if not q:
+            return {"error": "Parameter 'q' is required (например: /instruct?q=как создать заказ поставщику)"}
+        result = rag.generate_instruction(q, provider=provider, model=model)
+        return result
+    
     @app.get("/graph/stats")
     def graph_stats():
         return {
@@ -783,7 +1156,7 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
 
 
 def cmd_interactive():
-    """Интерактивный режим"""
+    """Интерактивный режим: поиск + генерация инструкции"""
     chunks, graph, vectors, node_ids = load_data()
     if not chunks:
         print("Данные не найдены. Сначала выполните: python graph_rag_1c_erp.py build")
@@ -806,6 +1179,8 @@ def cmd_interactive():
             if not q:
                 continue
             
+            # 1. Поиск по графу
+            print("\n--- ПОИСК ПО ГРАФУ ---")
             result = rag.search(q)
             
             print(f"\nРелевантные документы:")
@@ -822,8 +1197,42 @@ def cmd_interactive():
                 for s in result["workflow"][:8]:
                     print(f"  {s}")
             
-            print(f"\nКонтекст для LLM ({len(result['context'])} символов, показано первые 2000):")
+            print(f"\nКонтекст для LLM ({len(result['context'])} символов):")
             print(result["context"][:2000])
+            if len(result["context"]) > 2000:
+                print(f"  ... (ещё {len(result['context']) - 2000} символов)")
+            
+            # 2. Предпросмотр промпта
+            prompt = rag._build_compact_prompt(q, result)
+            print(f"\n--- ПРОМПТ ДЛЯ LLM ({len(prompt)} символов) ---")
+            print(prompt)
+            
+            # 3. Запрос на генерацию
+            ans = input("\nСгенерировать инструкцию? [Д/Н]: ").strip().lower()
+            if ans not in ("д", "y", "yes", "да", ""):
+                print()
+                continue
+            
+            provider = "ollama"
+            model = "qwen2.5:7b"
+            
+            print(f"\n--- ГЕНЕРАЦИЯ ИНСТРУКЦИИ ({provider}/{model}) ---")
+            print("  (ожидайте 30-60 секунд)")
+            
+            llm = LlmClient(provider=provider, model=model)
+            try:
+                instruction = llm.prompt(prompt)
+            except Exception as e:
+                instruction = f"[Ошибка] {e}"
+            
+            print("\n" + "=" * 60)
+            print("  ИНСТРУКЦИЯ")
+            print("=" * 60)
+            print()
+            print(instruction)
+            print()
+            print("=" * 60)
+            print(f"  Длина: {len(instruction)} символов")
             print()
             
         except KeyboardInterrupt:
@@ -831,6 +1240,35 @@ def cmd_interactive():
             break
         except Exception as e:
             print(f"Ошибка: {e}")
+
+
+def cmd_instruct(query: str, provider: str = "ollama", model: str = "qwen2.5:7b"):
+    """Генерирует пошаговую инструкцию через LLM на основе Graph RAG"""
+    chunks, graph, vectors, node_ids = load_data()
+    if not chunks:
+        print("Данные не найдены. Сначала выполните: python graph_rag_1c_erp.py build")
+        return
+    
+    embedder = Embedder(vectorizer_path=TFIDF_FILE)
+    rag = GraphRAG(chunks, graph, vectors, node_ids, embedder)
+    
+    print(f"Генерация инструкции для запроса: {query}")
+    print(f"Провайдер: {provider}, Модель: {model}")
+    print()
+    
+    result = rag.generate_instruction(query, provider=provider, model=model)
+    
+    print("=" * 60)
+    print(f"  ИНСТРУКЦИЯ ПО НАСТРОЙКЕ")
+    print("=" * 60)
+    print()
+    print(result["instruction"])
+    print()
+    print("=" * 60)
+    print(f"\nИсточники:")
+    for r in result["vector_results"]:
+        print(f"  - {r['title']} ({r['path']})")
+    print(f"\nДлина инструкции: {len(result['instruction'])} символов")
 
 
 # ---------------------------------------------------------------------------
@@ -852,6 +1290,11 @@ if __name__ == "__main__":
     
     p_interactive = sub.add_parser("interactive", help="Интерактивный режим")
     
+    p_instruct = sub.add_parser("instruct", help="Сгенерировать инструкцию через LLM")
+    p_instruct.add_argument("query", type=str, help="Текст запроса")
+    p_instruct.add_argument("--provider", type=str, default="ollama", help="Провайдер LLM (ollama/deepseek/google/etc.)")
+    p_instruct.add_argument("--model", type=str, default="qwen2.5:7b", help="Модель LLM")
+    
     args = parser.parse_args()
     
     if args.command == "build":
@@ -862,5 +1305,7 @@ if __name__ == "__main__":
         cmd_serve(args.host, args.port)
     elif args.command == "interactive":
         cmd_interactive()
+    elif args.command == "instruct":
+        cmd_instruct(args.query, args.provider, args.model)
     else:
         parser.print_help()
