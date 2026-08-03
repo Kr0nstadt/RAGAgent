@@ -19,10 +19,19 @@ import argparse
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 # Поддержка UTF-8 для Windows
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
-from pathlib import Path
+
+# Загрузка .env (ключи API)
+_env_path = Path(__file__).parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 
@@ -45,9 +54,11 @@ NODES_FILE = DATA_DIR / "nodes.json"
 TFIDF_FILE = DATA_DIR / "tfidf_vectorizer.pkl"
 GRAPH_PICKLE = DATA_DIR / "knowledge_graph.pkl"
 CHUNKS_META_FILE = DATA_DIR / "chunks_meta.json"
+INSTRUCTIONS_DIR = Path(__file__).parent / "instructions"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(INSTRUCTIONS_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Модели данных
@@ -1041,21 +1052,32 @@ class GraphRAG:
         
         return all_steps[:30]
     
-    def generate_instruction(self, query: str, provider: str = "deepseek",
-                              model: str = "deepseek-chat") -> Dict:
-        """Полный пайплайн: Graph RAG поиск → промпт → генерация инструкции через LLM"""
+    def generate_instruction(self, query: str, provider: str = "wormsoft",
+                              model: str = "wormsoft/agent/high") -> Dict:
+        """Полный пайплайн: поиск по 4 слоям → промпт → генерация через LLM"""
         result = self.search(query)
         
-        # Для локальных моделей (Ollama) — короткий промпт,
-        # для облачных — полный промпт с контекстом
         if provider == "ollama":
             prompt = self._build_compact_prompt(query, result)
         else:
-            prompt = self.build_prompt(query)
+            context = self._format_layer_context(result)
+            prompt = f"""Ты — эксперт 1С:ERP. Пользователь: {query}
+
+Контекст из графа знаний (4 слоя):
+{context[:6000]}
+
+Составь подробную пошаговую инструкцию по настройке сквозного бизнес-процесса:
+1. Какие объекты/документы 1С создать и в какой последовательности
+2. Где находится каждый пункт в меню (раздел, подраздел, пункт)
+3. Какие реквизиты заполнить и какими значениями
+4. Какие настройки включить и где
+5. Как проверить, что всё работает"""
+        
+        system = "Ты — эксперт-консультант по 1С:ERP Управление предприятием 2.5. Давай точные пошаговые инструкции на основе документации: куда нажимать, что заполнять, как настроить."
         
         llm = LlmClient(provider=provider, model=model)
         try:
-            instruction = llm.prompt(prompt)
+            instruction = llm.prompt(prompt, system=system)
         except Exception as e:
             instruction = f"Ошибка генерации инструкции: {e}"
         finally:
@@ -1079,112 +1101,191 @@ class GraphRAG:
         
         return f"Ты эксперт 1С ERP. На основе документации ({sections_text}) ответь на вопрос: {query}\n\nДай пошаговую инструкцию по настройке: что создать, где найти в меню, какие реквизиты заполнить."
 
+    def _format_layer_context(self, result: Dict) -> str:
+        """Форматирует контекст из всех 4 слоёв для DeepSeek."""
+        parts = []
+        by_layer = result.get("by_layer", {})
+        
+        # L1: Сценарии
+        scens = by_layer.get("scenarios", [])
+        if scens:
+            parts.append("=== [L1] БИЗНЕС-СЦЕНАРИИ ===")
+            for s in scens:
+                parts.append(f"- {s['title']}")
+        
+        # L2: Уточнения
+        cls = by_layer.get("clarifications", [])
+        if cls:
+            parts.append("\n=== [L2] УТОЧНЯЮЩИЕ ВОПРОСЫ ===")
+            for c in cls:
+                parts.append(f"- {c['title']}")
+        
+        # L3: Метаданные
+        meta = by_layer.get("metadata", [])
+        if meta:
+            parts.append("\n=== [L3] ОБЪЕКТЫ МЕТАДАННЫХ ===")
+            for m in meta[:8]:
+                content = m.get("content", "")[:600]
+                parts.append(f"- {m['title']}: {content}")
+        
+        # L4: Знания
+        kn = by_layer.get("knowledge", [])
+        if kn:
+            parts.append("\n=== [L4] ФРАГМЕНТЫ ДОКУМЕНТАЦИИ ===")
+            for k in kn[:5]:
+                content = k.get("content", "")[:300].strip()
+                parts.append(f"- {k['title']}: {content}")
+        
+        return "\n".join(parts)
+
     def generate_clarifying_questions(self, query: str, result: Dict,
                                        llm: 'LlmClient') -> str:
-        """Генерирует уточняющие вопросы на основе контекста графа"""
-        prompt = f"""Ты — консультант по 1С:ERP. Пользователь хочет: {query}
+        """Генерирует уточняющие вопросы по моделированию (не по реализации)."""
+        context = self._format_layer_context(result)
+        system = "Ты — методолог по 1С:ERP. Твоя задача — понять бизнес-процесс пользователя, а не давать инструкции."
+        prompt = f"""Пользователь хочет настроить в 1С:ERP: {query}
 
-На основе документации 1С, сформулируй 2-4 коротких уточняющих вопроса, чтобы понять:
-- какой именно объект/документ 1С ему нужен
-- в каком разрезе (организация, подразделение, период)
-- какие специфические настройки или реквизиты важны
+Вот что нашлось в графе знаний (все 4 слоя):
+{context[:4000]}
 
-Релевантные разделы документации:
-{'; '.join(r['title'] for r in result['vector_results'][:5])}
+Сформулируй 3-5 уточняющих вопросов, чтобы понять:
+- КАКОЙ именно бизнес-процесс нужно автоматизировать (не какой документ, а какой процесс)
+- Какие документы/объекты должны быть задействованы
+- Какие есть особые требования (организация, подразделение, номенклатура)
 
-Напиши ТОЛЬКО вопросы, по одному на строку, без нумерации."""
-        return llm.prompt(prompt)
+Вопросы должны быть про бизнес-моделирование, не про реализацию.
+Пример: «Какие документы закупки должны создаваться: Заказ поставщику или Поступление товаров?» — НЕ верно.
+«Какой бизнес-процесс закупок: закупка сырья для производства или закупка товаров для перепродажи?» — верно.
+
+Напиши ТОЛЬКО вопросы, по одному на строку."""
+        return llm.prompt(prompt, system=system)
 
     def generate_instruction_with_context(self, query: str, answers: str,
                                            result: Dict, llm: 'LlmClient') -> str:
-        """Генерирует итоговую инструкцию с учётом уточнений"""
-        prompt = f"""Ты — эксперт 1С:ERP. Пользователь хочет: {query}
+        """Генерирует итоговую инструкцию с учётом уточнений (полный контекст 4 слоёв)."""
+        context = self._format_layer_context(result)
+        system = "Ты — эксперт-консультант по 1С:ERP Управление предприятием 2.5. Составляй подробные пошаговые инструкции по настройке сквозных бизнес-процессов: куда нажимать, что заполнять, как проверить."
+        
+        prompt = f"""Пользователь хочет: {query}
 
-Дополнительный контекст от пользователя:
+Дополнительный контекст от пользователя (ответы на уточняющие вопросы):
 {answers}
 
-Доступные объекты метаданных (справочники, документы, реквизиты):
-"""
-        # Добавляем информацию о релевантных объектах метаданных из ERPcode
-        meta_objects = []
-        for r in result["vector_results"][:10]:
-            if r['path'].startswith('ERPcode/'):
-                meta_objects.append(f"- {r['title']}")
-        if meta_objects:
-            prompt += "\n".join(meta_objects[:10])
-        
-        prompt += """
+Контекст из графа знаний 1С ERP (все 4 слоя):
+{context[:6000]}
 
-Дай подробную пошаговую инструкцию:
-1. Какой объект/документ использовать
-2. Где находится в меню 1С
-3. Какие реквизиты заполнить
-4. Какие настройки включить
-5. Последовательность шагов
+Составь подробную пошаговую инструкцию по настройке сквозного бизнес-процесса:
 
-Если информации недостаточно — напиши что именно нужно уточнить."""
-        return llm.prompt(prompt)
+1. Какой бизнес-процесс настраивается и какие документы 1С в нём участвуют (в порядке создания)
+2. Для каждого шага: ГДЕ в меню 1С:ERP найти нужный пункт (Раздел → подраздел → команда)
+3. Для каждого документа: КАКИЕ реквизиты заполнить и какими значениями (виды номенклатуры, склады, соглашения, цены)
+4. Какие настройки/справочники предварительно заполнить (ставки НДС, виды цен, склады и т.п.)
+5. Как проверить результат (какие отчёты/регистры проверить)
+
+Пиши как методист для начинающего пользователя: точно, без абстракций, только то, что есть в контексте документации. Если данных не хватает — укажи, что именно нужно уточнить."""
+        return llm.prompt(prompt, system=system)
     
-    def build_prompt(self, query: str) -> str:
-        """Строит промпт для LLM на основе Graph RAG контекста"""
-        result = self.search(query)
+    def build_prompt(self, query: str, result: Optional[Dict] = None) -> str:
+        """Строит промпт для LLM на основе контекста из 4 слоёв."""
+        if result is None:
+            result = self.search(query)
         
+        context = self._format_layer_context(result)
         workflow_text = ""
-        if result["workflow"]:
-            workflow_text = "\n=== ИЗВЛЕЧЕННАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ ДЕЙСТВИЙ ===\n" + "\n".join(result["workflow"])
+        if result.get("workflow"):
+            workflow_text = "\n=== ПОСЛЕДОВАТЕЛЬНОСТЬ ДЕЙСТВИЙ ===\n" + "\n".join(result["workflow"])
         
-        prompt = f"""Ты — эксперт-консультант по 1С:ERP Управление предприятием 2.5.
-Твоя задача — дать пользователю полную пошаговую инструкцию на основе документации ITS 1C ERP.
+        return f"""Ты — эксперт-консультант по 1С:ERP Управление предприятием 2.5.
 
-Вопрос пользователя: {query}
+Вопрос: {query}
 
-НИЖЕ ПРИВЕДЕНА ИНФОРМАЦИЯ ИЗ ДОКУМЕНТАЦИИ ITS 1C ERP.
-Используй ТОЛЬКО эту информацию для ответа. Если в документации нет каких-то деталей — не выдумывай, а честно скажи, что в документации это не описано.
-
-{result['context']}
+{context}
 {workflow_text}
 
-На основе документации составь доскональную пошаговую инструкцию. Для каждого шага укажи:
-
-1. Какой объект/документ создать и в каком разделе меню он находится (конкретный путь в интерфейсе 1С)
-2. Какие реквизиты (поля) нужно заполнить и какие значения в них указать
-3. Какие настройки предварительно должны быть включены (функциональные опции)
-4. Какие справочники должны быть预先 созданы (организации, партнеры, номенклатура и т.д.)
-5. В какой последовательности выполнять шаги — что нужно создать СНАЧАЛА, а что ПОТОМ
-
-Инструкция должна быть максимально подробной и практической, чтобы пользователь мог сразу выполнить все действия в 1С.
-
-ВАЖНО: Перечисли все реквизиты с пояснениями. Например: "В поле 'Организация' выберите созданную ранее организацию", "В поле 'Вид цены' укажите 'Закупочная'".
-"""
-        return prompt
+На основе этих данных составь подробную пошаговую инструкцию:
+1. Какие объекты/документы 1С создать и где в меню
+2. Какие реквизиты заполнить
+3. Последовательность шагов
+4. Какие настройки включить"""
 
 
 # ---------------------------------------------------------------------------
-# 6. LLM клиент для генерации инструкций (pi.dev / Ollama)
+# 6. LLM клиент для генерации инструкций (ai.wormsoft.ru / DeepSeek / Ollama)
 # ---------------------------------------------------------------------------
 class LlmClient:
-    """Клиент для вызова LLM через pi.dev (облачные провайдеры) или Ollama (локально).
+    """Клиент для вызова LLM: Wormsoft (https://ai.wormsoft.ru), DeepSeek API или Ollama.
     
-    Поддерживает:
-    - pi.dev: DeepSeek, OpenAI, Anthropic, Google Gemini и др.
-    - Ollama: локальные модели (qwen2.5, llama3, и т.д.)
+    Wormsoft — основной режим (OpenAI-совместимый, ключ WORMSOFT_API_KEY в .env).
+    DeepSeek — запасной облачный (DEEPSEEK_API_KEY).
+    Ollama — локальный для тестов.
     """
     
-    def __init__(self, provider: str = "ollama", model: str = "qwen2.5:1.5b",
-                 no_session: bool = True, timeout: int = 600):
+    DEEPSEEK_URL = "https://api.deepseek.com/v1/chat/completions"
+    WORMSOFT_URL = "https://ai.wormsoft.ru/api/gpt/chat/completions"
+    
+    def __init__(self, provider: str = "wormsoft", model: str = "wormsoft/agent/high",
+                 timeout: int = 300):
         self.provider = provider
         self.model = model
-        self.no_session = no_session
         self.timeout = timeout
+        if provider == "wormsoft":
+            self.api_key = os.environ.get("WORMSOFT_API_KEY", "")
+        elif provider == "deepseek":
+            self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        else:
+            self.api_key = ""
     
-    def prompt(self, message: str) -> str:
-        if self.provider == "ollama":
+    def prompt(self, message: str, system: str = "") -> str:
+        if self.provider == "wormsoft" and self.api_key:
+            return self._prompt_openai(self.WORMSOFT_URL, "Wormsoft", message, system)
+        elif self.provider == "deepseek" and self.api_key:
+            return self._prompt_openai(self.DEEPSEEK_URL, "DeepSeek", message, system)
+        elif self.provider == "ollama":
             return self._prompt_ollama(message)
         else:
-            return self._prompt_pi(message)
+            return (f"[Ошибка] Нет API-ключа Wormsoft (WORMSOFT_API_KEY) "
+                    f"или DeepSeek (DEEPSEEK_API_KEY), Ollama не выбран")
+    
+    def _prompt_openai(self, url: str, name: str, message: str, system: str = "") -> str:
+        """Универсальный вызов OpenAI-совместимого chat/completions (Wormsoft / DeepSeek)."""
+        try:
+            import urllib.request
+            import urllib.error
+            
+            messages = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            messages.append({"role": "user", "content": message})
+            
+            body = json.dumps({
+                "model": self.model,
+                "messages": messages,
+                "temperature": 0.3,
+                "max_tokens": 16384,
+                "stream": False,
+            }).encode("utf-8")
+            
+            req = urllib.request.Request(
+                url,
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                }
+            )
+            
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            
+            return result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8") if e.fp else str(e)
+            return f"[Ошибка {name} API {e.code}] {detail[:200]}"
+        except Exception as e:
+            return f"[Ошибка {name}] {e}"
     
     def _prompt_ollama(self, message: str) -> str:
-        """Отправляет промпт в локальную модель Ollama"""
+        """Отправляет промпт в локальную модель Ollama (запасной вариант)."""
         try:
             import urllib.request
             import urllib.error
@@ -1211,58 +1312,6 @@ class LlmClient:
             return result.get("response", "").strip()
         except Exception as e:
             return f"[Ошибка Ollama] {e}"
-    
-    def _prompt_pi(self, message: str) -> str:
-        """Отправляет промпт через pi -p (через файл) и возвращает полный текст ответа"""
-        import tempfile
-        
-        pi_path = self._resolve_pi()
-        
-        # Пишем промпт во временный файл (обходим ограничение длины командной строки Windows)
-        tmp = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".md", delete=False)
-        tmp.write(message)
-        tmp_path = tmp.name
-        tmp.close()
-        
-        try:
-            args = [pi_path, "-p", f"@{tmp_path}", "--provider", self.provider, "--model", self.model]
-            if self.no_session:
-                args.append("--no-session")
-            
-            env = os.environ.copy()
-            env["PI_TELEMETRY"] = "0"
-            
-            result = subprocess.run(
-                args,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=self.timeout,
-                env=env
-            )
-            
-            if result.returncode != 0:
-                error_msg = result.stderr.strip() or result.stdout.strip() or f"pi exit code {result.returncode}"
-                return f"[Ошибка pi.dev] {error_msg}"
-            
-            return result.stdout.strip()
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
-    
-    @staticmethod
-    def _resolve_pi() -> str:
-        """Находит pi/pi.cmd в PATH или в APPDATA\\npm"""
-        for name in ("pi.cmd", "pi"):
-            which = shutil.which(name)
-            if which:
-                return which
-        appdata_pi = os.path.join(os.environ.get("APPDATA", ""), "npm", "pi.cmd")
-        if os.path.isfile(appdata_pi):
-            return appdata_pi
-        return "pi"
     
     def close(self):
         pass
@@ -1409,7 +1458,7 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
         if not q:
             return {"error": "Parameter 'q' is required (например: /query?q=как создать заказ поставщику)"}
         result = rag.search(q, top_k=top_k)
-        prompt = rag.build_prompt(q)
+        prompt = rag.build_prompt(q, result=result)
         return {
             "query": q,
             "results": result["vector_results"][:5],
@@ -1420,7 +1469,7 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
     
     @app.get("/instruct")
     @app.post("/instruct")
-    def instruct_endpoint(q: str = "", provider: str = "deepseek", model: str = "deepseek-chat"):
+    def instruct_endpoint(q: str = "", provider: str = "wormsoft", model: str = "wormsoft/agent/high"):
         if not q:
             return {"error": "Parameter 'q' is required (например: /instruct?q=как создать заказ поставщику)"}
         result = rag.generate_instruction(q, provider=provider, model=model)
@@ -1443,7 +1492,81 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
     uvicorn.run(app, host=host, port=port)
 
 
-def cmd_clarify():
+def save_instruction(query: str, instruction: str, sources: List[str] = None,
+                     answers: str = "") -> Path:
+    """Сохраняет сгенерированную инструкцию в файл instructions/<дата>_<слаг>.md."""
+    import datetime
+    ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+    slug = re.sub(r'[^\w\-]+', '_', query.strip())[:60].strip('_')
+    if not slug:
+        slug = "instruction"
+    fpath = INSTRUCTIONS_DIR / f"{ts}_{slug}.md"
+    
+    lines = []
+    lines.append(f"# Инструкция: {query}")
+    lines.append(f"\nДата: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"Источник: graph_rag_1c_erp.py (Graph RAG, 4 слоя)")
+    if answers:
+        lines.append(f"\n## Контекст пользователя\n{answers}")
+    lines.append("\n---\n")
+    lines.append(instruction)
+    if sources:
+        lines.append("\n## Источники")
+        for s in sources:
+            lines.append(f"- {s}")
+    lines.append("")
+    
+    fpath.write_text("\n".join(lines), encoding="utf-8")
+    return fpath
+
+
+def _build_template_instruction(query: str, answers: str, result: Dict, rag: GraphRAG) -> str:
+    """Генерирует инструкцию на основе графа без LLM (шаблон)."""
+    by_layer = result.get("by_layer", {})
+    meta = by_layer.get("metadata", [])
+    kn = by_layer.get("knowledge", [])
+    scens = by_layer.get("scenarios", [])
+    workflow = result.get("workflow", [])
+    
+    parts = []
+    parts.append(f"Инструкция: {query}")
+    parts.append("=" * 60)
+    
+    if scens:
+        parts.append(f"\n[1] Бизнес-сценарий: {scens[0]['title']}")
+    
+    if meta:
+        parts.append(f"\n[2] Какие объекты 1С задействованы:")
+        for m in meta:
+            parts.append(f"  • {m['title']}")
+            # Достаём реквизиты из контента
+            content = m.get("content", "")
+            reqs = re.findall(r'- ([^(]+)\(([^)]+)\)', content)
+            for req_name, req_type in reqs[:5]:
+                parts.append(f"    - {req_name.strip()} ({req_type.strip()})")
+    
+    if workflow:
+        parts.append(f"\n[3] Последовательность действий (из документации):")
+        for s in workflow[:10]:
+            parts.append(f"  {s}")
+    
+    if kn:
+        parts.append(f"\n[4] Описание из документации:")
+        for k in kn[:3]:
+            content = k.get("content", "")[:500].strip()
+            if content:
+                parts.append(f"  {content}")
+    
+    parts.append(f"\n[5] Контекст пользователя:")
+    parts.append(f"  {answers}")
+    
+    parts.append("\n" + "=" * 60)
+    parts.append("Для более точной инструкции настройте API-ключ Wormsoft в .env (WORMSOFT_API_KEY)")
+    
+    return "\n".join(parts)
+
+
+def cmd_clarify(query: str = ""):
     """Режим с уточняющими вопросами: пользователь -> вопросы -> ответы -> инструкция"""
     chunks, graph, vectors, node_ids = load_data()
     if not chunks:
@@ -1461,9 +1584,14 @@ def cmd_clarify():
     print("  'exit' для выхода.")
     print()
     
+    first = True
     while True:
         try:
-            q = input("\nВаша задача: ").strip()
+            if first and query:
+                q = query.strip()
+            else:
+                q = input("\nВаша задача: ").strip()
+            first = False
             if q.lower() in ("exit", "quit", "q"):
                 break
             if not q:
@@ -1477,39 +1605,57 @@ def cmd_clarify():
             for i, r in enumerate(result["vector_results"][:3]):
                 print(f"  [{i+1}] {r['title']}")
             
-            # 2. Генерация уточняющих вопросов
-            provider = "ollama"
-            model = "qwen2.5:7b"
+            # 2. Уточняющие вопросы: пробуем LLM, если нет — берём из Layer 2 графа
+            by_layer = result.get("by_layer", {})
+            l2_questions = [r["title"] for r in by_layer.get("clarifications", [])]
             
-            with LlmClient(provider=provider, model=model) as llm:
+            questions = None
+            api_key = os.environ.get("WORMSOFT_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+            if api_key:
+                provider, model = "wormsoft", "wormsoft/agent/high"
+                print(f"\n--- УТОЧНЯЮЩИЕ ВОПРОСЫ (Wormsoft) ---")
+                print("  (генерация...)")
+                with LlmClient(provider=provider, model=model) as llm:
+                    questions_text = rag.generate_clarifying_questions(q, result, llm)
+                    questions = [s.strip() for s in questions_text.split('\n') 
+                                 if s.strip() and not s.startswith('---') and 'Ошибка' not in s]
+                    if questions and len(questions) < 2:
+                        questions = None
             
-                print(f"\n--- УТОЧНЯЮЩИЕ ВОПРОСЫ ({provider}/{model}) ---")
-                print("  (генерация вопросов...)")
-                
-                questions_text = rag.generate_clarifying_questions(q, result, llm)
-                questions = [s.strip() for s in questions_text.split('\n') if s.strip() and not s.startswith('---')]
-                
-                if not questions:
+            if not questions:
+                # Fallback: вопросы из Layer 2 графа
+                if l2_questions:
+                    questions = l2_questions[:5]
+                    print(f"\n--- УТОЧНЯЮЩИЕ ВОПРОСЫ (из графа, Layer 2) ---")
+                else:
                     questions = [
                         "Для какой организации / предприятия настраиваете?",
                         "Какой период (год, месяц)?",
                         "Есть ли особые требования или специфика?"
                     ]
-                
-                print(f"\nУточняющие вопросы ({len(questions)}):")
-                print()
-                
-                answers = {}
-                for i, question in enumerate(questions):
-                    ans = input(f"  Вопрос {i+1}: {question}\n  Ответ: ").strip()
-                    answers[f"q{i+1}"] = {"question": question, "answer": ans or "(не указано)"}
-                
-                # 3. Финальная генерация
-                print(f"\n--- ФОРМИРУЮ ИНСТРУКЦИЮ ---")
-                print("  (ожидайте 30-120 секунд)")
-                
-                answers_text = "\n".join(f"Вопрос: {v['question']}\nОтвет: {v['answer']}" for v in answers.values())
-                instruction = rag.generate_instruction_with_context(q, answers_text, result, llm)
+                    print(f"\n--- УТОЧНЯЮЩИЕ ВОПРОСЫ (типовые) ---")
+            
+            print(f"({len(questions)} вопросов)")
+            print()
+            
+            answers = {}
+            for i, question in enumerate(questions):
+                ans = input(f"  Вопрос {i+1}: {question}\n  Ответ: ").strip()
+                answers[f"q{i+1}"] = {"question": question, "answer": ans or "(не указано)"}
+            
+            # 3. Финальная инструкция
+            print(f"\n--- ФОРМИРУЮ ИНСТРУКЦИЮ ---")
+            answers_text = "\n".join(f"Вопрос: {v['question']}\nОтвет: {v['answer']}" for v in answers.values())
+            
+            instruction = None
+            if api_key:
+                print("  (Wormsoft, ожидайте...)")
+                with LlmClient(provider="wormsoft", model="wormsoft/agent/high") as llm:
+                    instruction = rag.generate_instruction_with_context(q, answers_text, result, llm)
+            
+            if not instruction or instruction.startswith("[Ошибка"):
+                print("  (шаблон из графа)")
+                instruction = _build_template_instruction(q, answers_text, result, rag)
             
             print("\n" + "=" * 60)
             print("  ИНСТРУКЦИЯ")
@@ -1521,6 +1667,11 @@ def cmd_clarify():
             print(f"  Длина: {len(instruction)} символов")
             print()
             
+            sources = [f"{r['title']} ({r['path']})" for r in result["vector_results"]]
+            fpath = save_instruction(q, instruction, sources, answers=answers_text)
+            print(f"  Сохранено: {fpath}")
+            print()
+            
         except KeyboardInterrupt:
             print()
             break
@@ -1528,7 +1679,7 @@ def cmd_clarify():
             print(f"Ошибка: {e}")
 
 
-def cmd_interactive():
+def cmd_interactive(query: str = ""):
     """Интерактивный режим: поиск + генерация инструкции (старый, без уточнений)"""
     chunks, graph, vectors, node_ids = load_data()
     if not chunks:
@@ -1544,9 +1695,14 @@ def cmd_interactive():
     print("  Введите вопрос или 'exit' для выхода")
     print()
     
+    first = True
     while True:
         try:
-            q = input("> ").strip()
+            if first and query:
+                q = query.strip()
+            else:
+                q = input("> ").strip()
+            first = False
             if q.lower() in ("exit", "quit", "q"):
                 break
             if not q:
@@ -1617,7 +1773,7 @@ def cmd_interactive():
             print(f"Ошибка: {e}")
 
 
-def cmd_instruct(query: str, provider: str = "ollama", model: str = "qwen2.5:7b"):
+def cmd_instruct(query: str, provider: str = "wormsoft", model: str = "wormsoft/agent/high"):
     """Генерирует пошаговую инструкцию через LLM на основе Graph RAG"""
     chunks, graph, vectors, node_ids = load_data()
     if not chunks:
@@ -1644,6 +1800,10 @@ def cmd_instruct(query: str, provider: str = "ollama", model: str = "qwen2.5:7b"
     for r in result["vector_results"]:
         print(f"  - {r['title']} ({r['path']})")
     print(f"\nДлина инструкции: {len(result['instruction'])} символов")
+    
+    sources = [f"{r['title']} ({r['path']})" for r in result["vector_results"]]
+    fpath = save_instruction(query, result["instruction"], sources)
+    print(f"\n💾 Сохранено: {fpath}")
 
 
 # ---------------------------------------------------------------------------
@@ -1667,11 +1827,13 @@ if __name__ == "__main__":
     p_interactive.add_argument("--mode", type=str, default="clarify",
                                choices=["clarify", "direct"],
                                help="clarify — с уточняющими вопросами (по умолчанию), direct — прямой ответ")
+    p_interactive.add_argument("query", type=str, nargs="*",
+                               help="Задача (можно без кавычек — все слова объединяются). Пусто — ввод с клавиатуры")
     
     p_instruct = sub.add_parser("instruct", help="Сгенерировать инструкцию через LLM")
     p_instruct.add_argument("query", type=str, help="Текст запроса")
-    p_instruct.add_argument("--provider", type=str, default="ollama", help="Провайдер LLM (ollama/deepseek/google/etc.)")
-    p_instruct.add_argument("--model", type=str, default="qwen2.5:7b", help="Модель LLM")
+    p_instruct.add_argument("--provider", type=str, default="wormsoft", help="Провайдер LLM (wormsoft/deepseek/ollama)")
+    p_instruct.add_argument("--model", type=str, default="wormsoft/agent/high", help="Модель LLM")
     
     args = parser.parse_args()
     
@@ -1682,10 +1844,11 @@ if __name__ == "__main__":
     elif args.command == "serve":
         cmd_serve(args.host, args.port)
     elif args.command == "interactive":
+        query = " ".join(args.query) if args.query else ""
         if args.mode == "clarify":
-            cmd_clarify()
+            cmd_clarify(query)
         else:
-            cmd_interactive()
+            cmd_interactive(query)
     elif args.command == "instruct":
         cmd_instruct(args.query, args.provider, args.model)
     else:
