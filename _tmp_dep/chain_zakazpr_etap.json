@@ -1,0 +1,300 @@
+Загружено (быстро): 97353 чанков (метаданные), векторы (48788, 5000)
+{
+  "start": "ERPcode/Documents/ЗаказНаПроизводство2_2",
+  "end": "ERPcode/Documents/ЭтапПроизводства2_2",
+  "paths": [
+    {
+      "steps": [
+        {
+          "order": 1,
+          "node_id": "ERPcode/Documents/ЗаказНаПроизводство2_2",
+          "title": "Документ Заказ на производство",
+          "registers": [
+            {
+              "node_id": "ERPcode/InformationRegisters/ЗаказыНаПроизводство",
+              "title": "Регистр сведений Заказы на производство",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ФактическиеДанныеБюджетирования",
+              "title": "Регистр накопления Фактические данные бюджетирования",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ОбеспечениеПроизводственныхПроцессов",
+              "title": "Регистр накопления Обеспечение производственных процессов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ЗапасыИПотребности",
+              "title": "Регистр накопления Запасы и потребности",
+              "conditional": true
+            }
+          ],
+          "ui_paths": [
+            "Производство → МежцеховоеУправление2_2 → ЗаказНаПроизводство2_2",
+            "Производство → МежцеховоеУправление2_2_СЗаголовком → ЗаказНаПроизводство2_2"
+          ]
+        },
+        {
+          "order": 2,
+          "node_id": "ERPcode/Documents/ЭтапПроизводства2_2",
+          "title": "Документ Этап производства",
+          "registers": [
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоНДС",
+              "title": "Регистр накопления Движения по НДС",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКОтгрузке",
+              "title": "Регистр накопления Товары к отгрузке",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ЗаказыМатериаловВПроизводство",
+              "title": "Регистр накопления Заказы материалов в производство",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОперацииСПрослеживаемымиТоварами",
+              "title": "Регистр сведений Операции с прослеживаемыми товарами",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТрудозатратыНезавершенногоПроизводства",
+              "title": "Регистр накопления Трудозатраты незавершенного производства",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияСерийТоваров",
+              "title": "Регистр накопления Движения серий товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РезервыТоваровОрганизаций",
+              "title": "Регистр накопления Резервы товаров организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеРасходы",
+              "title": "Регистр накопления Прочие расходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/СебестоимостьТоваров",
+              "title": "Регистр накопления Себестоимость товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияНоменклатураДоходыРасходы",
+              "title": "Регистр накопления Движения Номенклатура - Доходы/Расходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииПрочихРасходов",
+              "title": "Регистр накопления Партии прочих расходов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОперацииСПрослеживаемымиТоварамиРасширенный",
+              "title": "Регистр сведений Операции с прослеживаемыми товарами (расширенный)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеАктивыПассивы",
+              "title": "Регистр накопления Активы и пассивы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоПрочимАктивамПассивам",
+              "title": "Регистр накопления Движения Прочие активы и пассивы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОтражениеДокументовВРеглУчете",
+              "title": "Регистр сведений Отражение документов в регл учете",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииНДСКРаспределению",
+              "title": "Регистр накопления Партии НДС к распределению",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ЗаказыНаПроизводство",
+              "title": "Регистр сведений Заказы на производство",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДетализацияПартийТоваровДляНДСиУСН",
+              "title": "Регистр накопления Детализация партий товаров для НДС и УСН (средняя за месяц)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСПредъявленный",
+              "title": "Регистр накопления НДС предъявленный",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКОформлениюОтчетовКомитенту",
+              "title": "Регистр накопления Товары к оформлению отчетов комитенту",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РаспоряженияНаПередачуИзПроизводства",
+              "title": "Регистр накопления Распоряжения на передачу из производства",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ФактическиеДанныеБюджетирования",
+              "title": "Регистр накопления Фактические данные бюджетирования",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/МеждународныйБезКорреспонденции",
+              "title": "Регистр бухгалтерии Журнал проводок без корреспонденции (международный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ОбеспечениеПроизводственныхПроцессов",
+              "title": "Регистр накопления Обеспечение производственных процессов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДоступностьВидовРабочихЦентров",
+              "title": "Регистр накопления Доступность видов рабочих центров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/Хозрасчетный",
+              "title": "Регистр бухгалтерии Журнал проводок (регламентированный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УслугиДавальцуКОформлению",
+              "title": "Регистр накопления Услуги давальцу к оформлению",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РаспоряженияНаОтгрузкуИВозврат",
+              "title": "Регистр накопления Распоряжения на отгрузку и возврат",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыНаСкладах",
+              "title": "Регистр накопления Товары на складах",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОтражениеДокументовВМеждународномУчете",
+              "title": "Регистр сведений Отражение документов в международном учете",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьЗаказыКлиентов",
+              "title": "Регистр накопления (не используется) Заказы клиентов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДетализацияПартийТоваровДляНДСиУСН2_4",
+              "title": "Регистр накопления Детализация партий товаров для НДС и УСН (ФИФО скользящая оценка)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/Международный",
+              "title": "Регистр бухгалтерии Журнал проводок с корреспонденцией (международный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСЗаписиКнигиПродаж",
+              "title": "Регистр накопления НДС Продажи",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыОрганизацийКПередаче",
+              "title": "Регистр накопления Товары организаций к передаче",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/КорректировкиНалоговойБазы",
+              "title": "Регистр бухгалтерии Журнал проводок (корректировки по НУ)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/МатериалыИРаботыВПроизводстве",
+              "title": "Регистр накопления Материалы и работы в производстве",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ВыручкаИСебестоимостьПродаж",
+              "title": "Регистр накопления Выручка и себестоимость продаж",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияНоменклатураНоменклатура",
+              "title": "Регистр накопления Движения Номенклатура - Номенклатура",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТрудозатратыКОформлению",
+              "title": "Регистр накопления Трудозатраты к оформлению",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыОрганизаций",
+              "title": "Регистр накопления Товары организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСЗаписиКнигиПокупок",
+              "title": "Регистр накопления НДС Покупки",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьРаспоряженияНаОтгрузку",
+              "title": "Регистр накопления (не используется) Распоряжения на отгрузку",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеРасходыНезавершенногоПроизводства",
+              "title": "Регистр накопления Прочие расходы незавершенного производства",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ЗаказыПоставщикам",
+              "title": "Регистр накопления Заказы поставщикам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ВыпускПродукции",
+              "title": "Регистр накопления Выпуск продукции",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКПоступлению",
+              "title": "Регистр накопления Товары к поступлению",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ЗапасыИПотребности",
+              "title": "Регистр накопления Запасы и потребности",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РНПТМатериаловВПроизводстве",
+              "title": "Регистр накопления РНПТ материалов в производстве",
+              "conditional": true
+            }
+          ],
+          "ui_paths": [
+            "Производство → МежцеховоеУправление2_2 → ЭтапПроизводства2_2",
+            "Производство → МежцеховоеУправление2_2_СЗаголовком → ЭтапПроизводства2_2"
+          ],
+          "incoming_relation": "precedes_via_required_document_reference",
+          "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЭтапПроизводства2_2.xml"
+        }
+      ]
+    }
+  ]
+}

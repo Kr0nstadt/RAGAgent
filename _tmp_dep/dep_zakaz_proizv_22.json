@@ -1,0 +1,885 @@
+Загружено (быстро): 97353 чанков (метаданные), векторы (48788, 5000)
+{
+  "target": "ERPcode/Documents/ЗаказНаПроизводство2_2",
+  "max_depth": 2,
+  "tree": {
+    "node_id": "ERPcode/Documents/ЗаказНаПроизводство2_2",
+    "title": "Документ Заказ на производство",
+    "node_type": "metadata",
+    "dependencies": [
+      {
+        "node_id": "ERPcode/Catalogs/ДоговорыКонтрагентов",
+        "relation": "requires",
+        "field": "Договор",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/Договор",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/ДоговорыКонтрагентов",
+          "title": "Справочник Договоры с контрагентами",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Валюты",
+              "relation": "requires",
+              "field": "ВалютаВзаиморасчетов",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ВалютаВзаиморасчетов",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Валюты",
+                "title": "Справочник Валюты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/ДоговорыАренды",
+              "relation": "requires",
+              "field": "ДоговорАренды",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ДоговорАренды",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/ДоговорыАренды",
+                "title": "Справочник Договоры аренды (лизинга)",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Контрагенты",
+              "relation": "requires",
+              "field": "Контрагент",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/Контрагент",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Контрагенты",
+                "title": "Справочник Контрагенты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Организации",
+              "relation": "requires",
+              "field": "Организация",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/Организация",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Организации",
+                "title": "Справочник Организации",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Партнеры",
+              "relation": "requires",
+              "field": "Партнер",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/Партнер",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Партнеры",
+                "title": "Справочник Партнеры",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+              "relation": "requires",
+              "field": "Подразделение",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/Подразделение",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+                "title": "Справочник Структура предприятия",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ВариантыКурсаДоговора",
+              "relation": "requires",
+              "field": "ВариантКурсаДоговора",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ВариантКурсаДоговора",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ВариантыКурсаДоговора",
+                "title": "Перечисление Варианты курса договора",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ВидыАгентскихДоговоров",
+              "relation": "requires",
+              "field": "ВидАгентскогоДоговора",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ВидАгентскогоДоговора",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ВидыАгентскихДоговоров",
+                "title": "Перечисление Виды агентских договоров",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ПорядокОформленияСписанияТоваровПринятыхНаХранение",
+              "relation": "requires",
+              "field": "ПорядокОформленияСписанияНедостачТоваровПринятыхНаХранение",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ПорядокОформленияСписанияНедостачТоваровПринятыхНаХранение",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ПорядокОформленияСписанияТоваровПринятыхНаХранение",
+                "title": "Перечисление Порядок оформления списания товаров, принятых на хранение",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ПорядокРасчетов",
+              "relation": "requires",
+              "field": "ПорядокРасчетов",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ПорядокРасчетов",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ПорядокРасчетов",
+                "title": "Перечисление Детализация расчетов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СпособыДоставки",
+              "relation": "requires",
+              "field": "СпособДоставки",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/СпособДоставки",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СпособыДоставки",
+                "title": "Перечисление Способы доставки",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыДоговоровКонтрагентов",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыДоговоровКонтрагентов",
+                "title": "Перечисление Статусы договоров контрагентов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ТипыДоговоров",
+              "relation": "requires",
+              "field": "ТипДоговора",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/ТипДоговора",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ТипыДоговоров",
+                "title": "Перечисление Типы договоров",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ТипыНалогообложенияНДС",
+              "relation": "requires",
+              "field": "НалогообложениеНДС",
+              "field_id": "ERPcode/Catalogs/ДоговорыКонтрагентов/Fields/НалогообложениеНДС",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ДоговорыКонтрагентов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ТипыНалогообложенияНДС",
+                "title": "Перечисление Типы налогообложения НДС",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/Назначения",
+        "relation": "requires",
+        "field": "НазначениеПродукция",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/НазначениеПродукция",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/Назначения",
+          "title": "Справочник Назначения",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/Организации",
+        "relation": "requires",
+        "field": "Организация",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/Организация",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/Организации",
+          "title": "Справочник Организации",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Валюты",
+              "relation": "requires",
+              "field": "ВалютаРегламентированногоУчета",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/ВалютаРегламентированногоУчета",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Валюты",
+                "title": "Справочник Валюты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СтраныМира",
+              "relation": "requires",
+              "field": "СтранаРегистрации",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/СтранаРегистрации",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СтраныМира",
+                "title": "Справочник Страны мира",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+                "title": "Перечисление Статусы организаций подразделений",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ЮрФизЛицо",
+              "relation": "requires",
+              "field": "ЮрФизЛицо",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/ЮрФизЛицо",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ЮрФизЛицо",
+                "title": "Перечисление Юр/Физлицо",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/Партнеры",
+        "relation": "requires",
+        "field": "Партнер",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/Партнер",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/Партнеры",
+          "title": "Справочник Партнеры",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/ГруппыДоступаПартнеров",
+              "relation": "requires",
+              "field": "ГруппаДоступа",
+              "field_id": "ERPcode/Catalogs/Партнеры/Fields/ГруппаДоступа",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Партнеры.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/ГруппыДоступаПартнеров",
+                "title": "Справочник Группы доступа партнеров",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/КомпанияЧастноеЛицо",
+              "relation": "requires",
+              "field": "ЮрФизЛицо",
+              "field_id": "ERPcode/Catalogs/Партнеры/Fields/ЮрФизЛицо",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Партнеры.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/КомпанияЧастноеЛицо",
+                "title": "Перечисление Компания частное лицо",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/Приоритеты",
+        "relation": "requires",
+        "field": "Приоритет",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/Приоритет",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/Приоритеты",
+          "title": "Справочник Приоритеты",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/СерииНоменклатуры",
+        "relation": "requires",
+        "field": "РемонтируемоеИзделиеСерия",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/РемонтируемоеИзделиеСерия",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/СерииНоменклатуры",
+          "title": "Справочник Серии номенклатуры",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/ВидыНоменклатуры",
+              "relation": "requires",
+              "field": "ВидНоменклатуры",
+              "field_id": "ERPcode/Catalogs/СерииНоменклатуры/Fields/ВидНоменклатуры",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СерииНоменклатуры.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/ВидыНоменклатуры",
+                "title": "Справочник Виды номенклатуры",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+        "relation": "requires",
+        "field": "Подразделение",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/Подразделение",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+          "title": "Справочник Структура предприятия",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Enums/ВариантыОбособленногоУчетаТоваров",
+              "relation": "requires",
+              "field": "ВариантОбособленногоУчетаТоваров",
+              "field_id": "ERPcode/Catalogs/СтруктураПредприятия/Fields/ВариантОбособленногоУчетаТоваров",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СтруктураПредприятия.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ВариантыОбособленногоУчетаТоваров",
+                "title": "Перечисление Варианты обособленного учета товаров",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СпособыПолученияПолуфабрикатовПроизводимыхВПроцессе",
+              "relation": "requires",
+              "field": "СпособПолученияПолуфабрикатов",
+              "field_id": "ERPcode/Catalogs/СтруктураПредприятия/Fields/СпособПолученияПолуфабрикатов",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СтруктураПредприятия.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СпособыПолученияПолуфабрикатовПроизводимыхВПроцессе",
+                "title": "Перечисление Способы получения полуфабрикатов производимых в процессе",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Catalogs/СтруктураПредприятия/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СтруктураПредприятия.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+                "title": "Перечисление Статусы организаций подразделений",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/ХарактеристикиНоменклатуры",
+        "relation": "requires",
+        "field": "РемонтируемоеИзделиеХарактеристика",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/РемонтируемоеИзделиеХарактеристика",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/ХарактеристикиНоменклатуры",
+          "title": "Справочник Характеристики номенклатуры",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Контрагенты",
+              "relation": "requires",
+              "field": "Контрагент",
+              "field_id": "ERPcode/Catalogs/ХарактеристикиНоменклатуры/Fields/Контрагент",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ХарактеристикиНоменклатуры.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Контрагенты",
+                "title": "Справочник Контрагенты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Организации",
+              "relation": "requires",
+              "field": "Принципал",
+              "field_id": "ERPcode/Catalogs/ХарактеристикиНоменклатуры/Fields/Принципал",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ХарактеристикиНоменклатуры.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Организации",
+                "title": "Справочник Организации",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Партнеры",
+              "relation": "requires",
+              "field": "Принципал",
+              "field_id": "ERPcode/Catalogs/ХарактеристикиНоменклатуры/Fields/Принципал",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ХарактеристикиНоменклатуры.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Партнеры",
+                "title": "Справочник Партнеры",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СпособыПривязкиОперацийПроизводства",
+        "relation": "requires",
+        "field": "РазмещениеВыпуска",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/РазмещениеВыпуска",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СпособыПривязкиОперацийПроизводства",
+          "title": "Перечисление Способы привязки операций производства",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СпособыРаспределенияЗатратНаВыходныеИзделия",
+        "relation": "requires",
+        "field": "СпособРаспределенияЗатратНаВыходныеИзделия",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/СпособРаспределенияЗатратНаВыходныеИзделия",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СпособыРаспределенияЗатратНаВыходныеИзделия",
+          "title": "Перечисление Способы распределения затрат на выходные изделия",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СтатусыЗаказовНаПроизводство2_2",
+        "relation": "requires",
+        "field": "Статус",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/Статус",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СтатусыЗаказовНаПроизводство2_2",
+          "title": "Перечисление Статусы заказов на производство",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/ТипыПроизводственныхПроцессов",
+        "relation": "requires",
+        "field": "ТипПроизводственногоПроцесса",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/ТипПроизводственногоПроцесса",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/ТипыПроизводственныхПроцессов",
+          "title": "Перечисление Типы производственных процессов",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/ХозяйственныеОперации",
+        "relation": "requires",
+        "field": "ХозяйственнаяОперация",
+        "field_id": "ERPcode/Documents/ЗаказНаПроизводство2_2/Fields/ХозяйственнаяОперация",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ЗаказНаПроизводство2_2.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/ХозяйственныеОперации",
+          "title": "Перечисление Хозяйственные операции",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      }
+    ]
+  }
+}

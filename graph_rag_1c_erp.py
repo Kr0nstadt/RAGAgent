@@ -32,15 +32,16 @@ if _env_path.exists():
         if _line and not _line.startswith("#") and "=" in _line:
             _k, _v = _line.split("=", 1)
             os.environ.setdefault(_k.strip(), _v.strip())
-from typing import List, Dict, Optional, Tuple
+from typing import Any, List, Dict, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 
 import pickle
 
 import networkx as nx
 import numpy as np
+from scipy import sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import normalize
 
 # ---------------------------------------------------------------------------
 # Конфигурация
@@ -49,16 +50,24 @@ ITS_ROOT = Path(__file__).parent / "001--1С-ERP Управление предп
 DATA_DIR = Path(__file__).parent / "graph_rag_data"
 GRAPH_FILE = DATA_DIR / "knowledge_graph.graphml"
 CHUNKS_FILE = DATA_DIR / "chunks.json"
+CHUNKS_JSONL_FILE = DATA_DIR / "chunks.jsonl"
 VECTORS_FILE = DATA_DIR / "vectors.npy"
+VECTORS_SPARSE_FILE = DATA_DIR / "vectors_tfidf.npz"
 NODES_FILE = DATA_DIR / "nodes.json"
 TFIDF_FILE = DATA_DIR / "tfidf_vectorizer.pkl"
 GRAPH_PICKLE = DATA_DIR / "knowledge_graph.pkl"
 CHUNKS_META_FILE = DATA_DIR / "chunks_meta.json"
+INDEX_MANIFEST_FILE = DATA_DIR / "index_manifest.json"
 INSTRUCTIONS_DIR = Path(__file__).parent / "instructions"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(INSTRUCTIONS_DIR, exist_ok=True)
+
+
+def llm_calls_enabled() -> bool:
+    """Внешние/локальные LLM вызываются только после явного разрешения."""
+    return os.environ.get("RAG_ENABLE_LLM", "").strip().lower() in {"1", "true", "yes"}
 
 # ---------------------------------------------------------------------------
 # Модели данных
@@ -92,6 +101,11 @@ class DocChunk:
     entry_docs: List[str] = field(default_factory=list)
     # L1→L2: какие вопросы нужно задать для этого сценария
     clarifications: List[str] = field(default_factory=list)
+    # Типизированные отношения L3/L4. Каждый элемент: target, type,
+    # reverse_type, weight, evidence, properties.
+    relations: List[Dict[str, Any]] = field(default_factory=list)
+    # Расширенные свойства узла (обязательность поля, UI path, источник XML и т.д.)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 # ---------------------------------------------------------------------------
 # 1. Парсер markdown-файлов ITS
@@ -102,7 +116,7 @@ def load_ref_mapping() -> Dict[str, str]:
     manifest_path = ITS_ROOT / "manifest.json"
     if not manifest_path.exists():
         return mapping
-    
+
     try:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         for entry in data.get("entries", []):
@@ -136,7 +150,7 @@ def parse_its_markdown() -> List[DocChunk]:
     for fpath in md_files:
         rel = fpath.relative_to(ITS_ROOT)
         path_str = str(rel).replace("\\", "/").replace(".md", "")
-        
+
         try:
             text = fpath.read_text(encoding="utf-8")
         except Exception:
@@ -459,7 +473,9 @@ def parse_business_scenarios() -> List[DocChunk]:
         if scenario_dir.exists():
             for sub in sorted(scenario_dir.glob("*.md")):
                 sub_title = re.sub(r'^\d+--', '', sub.stem)
-                sub_id = f"scenario_{sub.stem}"
+                # Имя подраздела повторяется в разных главах ИТС, поэтому ID
+                # обязан включать родительский сценарий.
+                sub_id = f"{scenario_id}/{sub.stem}"
                 sub_scenarios.append(DocChunk(
                     id=sub_id,
                     title=sub_title,
@@ -503,19 +519,73 @@ def _find_entry_docs(scenario: DocChunk, metadata_chunks: List[DocChunk]) -> Lis
 # 1.6. Уточняющие узлы (Layer 2)
 # ---------------------------------------------------------------------------
 CLARIFY_TEMPLATES = [
-    ("Организация", "Для какой организации настраиваете процесс?", "Спр.Организации"),
-    ("Склад", "Какой склад используется? Производственный, оптовый, розничный?", "Спр.Склады"),
-    ("Подразделение", "Какое подразделение-исполнитель?", "Спр.СтруктураПредприятия"),
-    ("Номенклатура", "Какой вид номенклатуры: сырьё, материал, продукция?", "Спр.Номенклатура"),
-    ("Контрагент", "Какой контрагент / партнёр участвует?", "Спр.Контрагенты"),
-    ("Соглашение", "По какому соглашению / договору работаем?", "Спр.СоглашенияСКлиентами"),
-    ("Вид цены", "Какой вид цены применяется?", "Спр.ВидыЦен"),
-    ("Валюта", "В какой валюте ведётся учёт?", "Спр.Валюты"),
+    ("Организация", "Какие организации и контуры учёта входят в процесс?", "ERPcode/Catalogs/Организации"),
+    ("Склад", "Какие склады, помещения и кладовые участвуют?", "ERPcode/Catalogs/Склады"),
+    ("Подразделение", "Какие подразделения исполняют и контролируют этапы?", "ERPcode/Catalogs/СтруктураПредприятия"),
+    ("Номенклатура", "Какие категории номенклатуры участвуют: сырьё, полуфабрикаты, продукция, тара?", "ERPcode/Catalogs/Номенклатура"),
+    ("ВидНоменклатуры", "Какие виды номенклатуры и правила учёта характеристик/серий нужны?", "ERPcode/Catalogs/ВидыНоменклатуры"),
+    ("Единицы", "В каких единицах ведутся хранение, производство, закупка и продажа?", "ERPcode/Catalogs/УпаковкиЕдиницыИзмерения"),
+    ("Контрагент", "Какие партнёры и контрагенты участвуют и как различаются их роли?", "ERPcode/Catalogs/Контрагенты"),
+    ("Соглашение", "Какие соглашения, договоры, условия оплаты и отгрузки используются?", "ERPcode/Catalogs/СоглашенияСКлиентами"),
+    ("Вид цены", "Какие виды цен, скидки и правила расчёта применяются?", "ERPcode/Catalogs/ВидыЦен"),
+    ("Валюта", "В каких валютах ведутся цены, расчёты и учёт?", "ERPcode/Catalogs/Валюты"),
     ("Период", "За какой период (месяц, квартал, год)?", None),
-    ("СтатусЗаказа", "Какой статус заказа: Формируется, К производству, Закрыт?", "Переч.СтатусыЗаказовНаПроизводство"),
-    ("ВидОбеспечения", "Какой способ обеспечения: производство, закупка, перемещение?", "Переч.ВариантыОбеспечения"),
+    ("СтатусЗаказа", "Какие состояния и правила подтверждения заказа нужны?", "ERPcode/Enums/СтатусыЗаказовНаПроизводство"),
+    ("ВидОбеспечения", "Как выбирается способ обеспечения: производство, закупка, перемещение, остаток?", "ERPcode/Enums/ВариантыОбеспечения"),
     ("Партия", "Нужно ли обособленное обеспечение (учёт по назначениям)?", None),
+    ("КаналПродаж", "Чем различаются процессы по каналам продаж и типам клиентов?", None),
+    ("ПроизводствоПодЗаказ", "Производство работает под заказ, на склад или по смешанной схеме?", None),
+    ("Полуфабрикаты", "Учитываются ли полуфабрикаты отдельным выпуском и передачей между этапами?", "ERPcode/Catalogs/Номенклатура"),
+    ("РесурсныеСпецификации", "Какие рецептуры и ресурсные спецификации используются?", "ERPcode/Catalogs/РесурсныеСпецификации"),
+    ("Планирование", "Какой горизонт и уровень производственного планирования требуется?", None),
+    ("ПополнениеЗапасов", "Как рассчитываются минимальные запасы и количество закупки?", None),
+    ("ВыборПоставщика", "По каким правилам выбирается поставщик и график поставок?", "ERPcode/Catalogs/Партнеры"),
+    ("ОрдернаяСхема", "Нужна ли ордерная схема при приёмке, перемещении и отгрузке?", None),
+    ("FIFO", "Как должен обеспечиваться FIFO: по партиям, сериям или организационным правилом?", None),
+    ("СерииСроки", "Нужно ли вести серии, даты производства и сроки годности?", "ERPcode/Catalogs/СерииНоменклатуры"),
+    ("КонтрольКачества", "Где фиксируются входной, производственный и выходной контроль качества?", None),
+    ("Брак", "Как оформляются брак, изоляция, возврат и утилизация?", None),
+    ("Тара", "Как учитывается упаковка и многооборотная тара?", "ERPcode/Catalogs/Номенклатура"),
+    ("Доставка", "Доставка и маршруты ведутся в ERP или во внешней системе?", None),
+    ("Возвраты", "Какие причины, финансовые последствия и дальнейшие действия предусмотрены для возврата?", None),
+    ("КонтурУчета", "Нужен оперативный, управленческий, регламентированный учёт или несколько контуров?", None),
+    ("Себестоимость", "Как должна рассчитываться себестоимость и какие затраты включаются?", None),
+    ("Интеграции", "Какие данные поступают автоматически и из каких систем?", None),
+    ("Роли", "Кто создаёт, согласует, проводит и контролирует документы?", None),
+    ("Исключения", "Какие исключительные ветки разрешены и кто их согласует?", None),
+    ("КритерииПриемки", "Какие отчёты и показатели подтверждают успешность процесса?", None),
 ]
+
+CLARIFICATION_KEYWORDS = {
+    "Склад": ("склад", "запас", "хранен", "логист"),
+    "Номенклатура": ("номенклат", "товар", "продук", "сырь", "материал"),
+    "ВидНоменклатуры": ("номенклат", "товар", "продук", "сырь"),
+    "Единицы": ("номенклат", "товар", "продук", "сырь", "упаков"),
+    "Контрагент": ("продаж", "закуп", "клиент", "постав", "расчет"),
+    "Соглашение": ("продаж", "закуп", "клиент", "постав", "расчет"),
+    "Вид цены": ("продаж", "цен", "скид"),
+    "Валюта": ("валют", "расчет", "казнач"),
+    "СтатусЗаказа": ("заказ", "производ"),
+    "ВидОбеспечения": ("обеспеч", "закуп", "производ", "склад"),
+    "Партия": ("обеспеч", "парт", "сер", "склад", "производ"),
+    "КаналПродаж": ("продаж", "клиент", "рознич"),
+    "ПроизводствоПодЗаказ": ("производ",),
+    "Полуфабрикаты": ("производ", "полуфаб"),
+    "РесурсныеСпецификации": ("производ", "спецификац", "рецепт"),
+    "Планирование": ("план", "производ"),
+    "ПополнениеЗапасов": ("закуп", "запас", "постав"),
+    "ВыборПоставщика": ("закуп", "постав"),
+    "ОрдернаяСхема": ("склад", "прием", "отгруз"),
+    "FIFO": ("склад", "запас", "хранен"),
+    "СерииСроки": ("склад", "производ", "товар", "номенклат"),
+    "КонтрольКачества": ("качеств", "производ", "закуп", "склад"),
+    "Брак": ("качеств", "производ", "возврат"),
+    "Тара": ("склад", "упаков", "тара", "продаж"),
+    "Доставка": ("логист", "достав", "продаж"),
+    "Возвраты": ("возврат", "продаж"),
+    "Себестоимость": ("себесто", "затрат", "производ"),
+    "Интеграции": ("интеграц", "обмен"),
+}
 
 def generate_clarification_nodes() -> List[DocChunk]:
     """Создаёт узлы-уточнения (Layer 2) на основе типовых вопросов."""
@@ -540,10 +610,15 @@ def link_scenario_to_clarifications(scenarios: List[DocChunk], clarifications: L
                                     metadata_chunks: List[DocChunk]) -> None:
     """Связывает сценарии (L1) с уточнениями (L2) и метаданными (L3)."""
     for sc in scenarios:
-        if sc.level > 0:
-            continue
-        # Все типовые уточнения применимы к любому сценарию
-        sc.clarifications = [c.id for c in clarifications[:8]]
+        scenario_text = f"{sc.title} {sc.content}".lower().replace("ё", "е")
+        selected = []
+        core = {"Организация", "Подразделение", "КонтурУчета", "Роли", "КритерииПриемки"}
+        for clarification in clarifications:
+            clarification_id = clarification.id.removeprefix("clarify_")
+            keywords = CLARIFICATION_KEYWORDS.get(clarification_id, ())
+            if clarification_id in core or any(keyword in scenario_text for keyword in keywords):
+                selected.append(clarification.id)
+        sc.clarifications = selected
         
         # Ищем релевантные документы Layer 3 по ключевым словам из названия сценария
         keywords = re.findall(r'[А-ЯЁ][а-яё]+', sc.title)
@@ -560,10 +635,33 @@ def link_scenario_to_clarifications(scenarios: List[DocChunk], clarifications: L
                         doc_ids.append(mc.id)
                     break
         sc.entry_docs = doc_ids[:10]
-def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
+def build_knowledge_graph(chunks: List[DocChunk]) -> nx.MultiDiGraph:
     """Строит 4-слойный граф знаний."""
-    G = nx.DiGraph()
+    # MultiDiGraph сохраняет несколько независимых смыслов между одной парой
+    # узлов (например references + requires + may_write_register).
+    G = nx.MultiDiGraph()
     chunk_map = {c.id: c for c in chunks}
+
+    def add_edge(source: str, target: str, rel: str, weight: float,
+                 evidence: str = "", properties: Optional[Dict[str, Any]] = None) -> bool:
+        if source not in chunk_map or target not in chunk_map or source == target:
+            return False
+        key_base = rel
+        key = key_base
+        counter = 2
+        # Одинаковое отношение с теми же свойствами повторно не добавляем.
+        props_json = json.dumps(properties or {}, ensure_ascii=False, sort_keys=True, default=str)
+        while G.has_edge(source, target, key=key):
+            existing = G.get_edge_data(source, target, key)
+            if existing and existing.get("relation") == rel and existing.get("properties", "{}") == props_json:
+                return False
+            key = f"{key_base}:{counter}"
+            counter += 1
+        G.add_edge(
+            source, target, key=key, relation=rel, weight=float(weight),
+            evidence=str(evidence or ""), properties=props_json,
+        )
+        return True
     
     print("  Добавление узлов с атрибутами слоёв...")
     for c in chunks:
@@ -574,13 +672,14 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
                    level=c.level,
                    path=c.path,
                    terms=",".join(c.terms[:20]),
-                   content_preview=c.content[:200])
+                   content_preview=c.content[:500],
+                   metadata=json.dumps(c.metadata or {}, ensure_ascii=False, default=str))
     
     print("  Ребра parent-child...")
     for c in chunks:
         if c.parent_id and c.parent_id in chunk_map:
-            G.add_edge(c.parent_id, c.id, relation="parent_child", weight=1.0)
-            G.add_edge(c.id, c.parent_id, relation="child_parent", weight=0.8)
+            add_edge(c.parent_id, c.id, "parent_child", 1.0)
+            add_edge(c.id, c.parent_id, "child_parent", 0.8)
     
     print("  Ребра между слоями (inter-layer)...")
     layer_edges = 0
@@ -588,22 +687,39 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
         # L1 → L3: entry_docs (сценарий → документы)
         if c.layer == 1 and c.entry_docs:
             for target_id in c.entry_docs:
-                if target_id in chunk_map and not G.has_edge(c.id, target_id):
-                    G.add_edge(c.id, target_id, relation="entry_doc", weight=0.9)
+                if add_edge(c.id, target_id, "entry_doc", 0.9):
                     layer_edges += 1
         # L1 → L2: clarifications (сценарий → уточняющие вопросы)
         if c.layer == 1 and c.clarifications:
             for target_id in c.clarifications:
-                if target_id in chunk_map and not G.has_edge(c.id, target_id):
-                    G.add_edge(c.id, target_id, relation="clarification", weight=0.8)
+                if add_edge(c.id, target_id, "clarification", 0.8):
                     layer_edges += 1
         # L2 → L3: entry_docs на clarification-узлах (уточнение → реквизит)
         if c.layer == 2 and c.entry_docs:
             for target_id in c.entry_docs:
-                if target_id in chunk_map and not G.has_edge(c.id, target_id):
-                    G.add_edge(c.id, target_id, relation="clarifies_field", weight=0.7)
+                if add_edge(c.id, target_id, "clarifies_field", 0.7):
                     layer_edges += 1
-        # L3 → L4: metadata → knowledge (через shared-terms / refs)
+        # Точные типизированные отношения из XML/UI.
+        for item in c.relations:
+            target_id = item.get("target")
+            relation_type = item.get("type")
+            if not target_id or not relation_type:
+                continue
+            if add_edge(
+                c.id, target_id, relation_type,
+                float(item.get("weight", 0.7)),
+                evidence=item.get("evidence", ""),
+                properties=item.get("properties", {}),
+            ):
+                layer_edges += 1
+            reverse_type = item.get("reverse_type")
+            if reverse_type and add_edge(
+                target_id, c.id, reverse_type,
+                float(item.get("weight", 0.7)),
+                evidence=item.get("evidence", ""),
+                properties=item.get("properties", {}),
+            ):
+                layer_edges += 1
     
     print(f"  Добавлено {layer_edges} межслойных ребер")
     
@@ -611,13 +727,8 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
     ref_count = 0
     for c in chunks:
         for target_id in c.refs:
-            if target_id in chunk_map and target_id != c.id and not G.has_edge(c.id, target_id):
-                G.add_edge(c.id, target_id, relation="references", weight=0.7)
+            if add_edge(c.id, target_id, "references", 0.7):
                 ref_count += 1
-                if ref_count > 5000:
-                    break
-        if ref_count > 5000:
-            break
     print(f"  Добавлено {ref_count} ребер cross-references")
     
     print("  Ребра shared-terms (через инвертированный индекс)...")
@@ -635,23 +746,25 @@ def build_knowledge_graph(chunks: List[DocChunk]) -> nx.DiGraph:
     shared_edges = 0
     chunk_term_count = {c.id: len(c.terms) for c in chunks}
     
-    for term, cids in term_index.items():
+    max_shared_edges = int(os.environ.get("RAG_MAX_SHARED_TERM_EDGES", "20000"))
+    for term, cids in sorted(term_index.items()):
         if len(cids) < 2:
             continue
+        cids = sorted(set(cids))
         for i in range(len(cids)):
             for j in range(i+1, len(cids)):
                 c1, c2 = cids[i], cids[j]
-                if not G.has_edge(c1, c2):
-                    score = 1.0 / max(chunk_term_count.get(c1, 1), chunk_term_count.get(c2, 1))
-                    if score > 0.05:
-                        G.add_edge(c1, c2, relation="shared_terms", weight=round(score, 3))
-                        G.add_edge(c2, c1, relation="shared_terms", weight=round(score, 3))
+                score = 1.0 / max(chunk_term_count.get(c1, 1), chunk_term_count.get(c2, 1))
+                if score > 0.05:
+                    added = add_edge(c1, c2, "shared_terms", round(score, 3))
+                    add_edge(c2, c1, "shared_terms", round(score, 3))
+                    if added:
                         shared_edges += 1
-                        if shared_edges > 10000:
-                            break
-            if shared_edges > 10000:
+                if shared_edges >= max_shared_edges:
+                    break
+            if shared_edges >= max_shared_edges:
                 break
-        if shared_edges > 10000:
+        if shared_edges >= max_shared_edges:
             break
     print(f"  Добавлено {shared_edges} ребер shared-terms")
     
@@ -701,14 +814,14 @@ class Embedder:
             print(f"  Не удалось загрузить sentence-transformers: {e}")
             return False
     
-    def encode(self, texts: List[str], fit: bool = False) -> np.ndarray:
+    def encode(self, texts: List[str], fit: bool = False):
         if self._model is None:
             if not self._try_load_sentence():
                 return self._encode_tfidf(texts, fit=fit)
             else:
-                return self._model.encode(texts, show_progress_bar=True, normalize_embeddings=True)
+                return self._model.encode(texts, show_progress_bar=True, normalize_embeddings=True).astype(np.float32)
         else:
-            return self._model.encode(texts, show_progress_bar=True, normalize_embeddings=True)
+            return self._model.encode(texts, show_progress_bar=True, normalize_embeddings=True).astype(np.float32)
     
     def _encode_tfidf(self, texts: List[str], fit: bool = False) -> np.ndarray:
         if fit or self._vectorizer is None:
@@ -720,27 +833,20 @@ class Embedder:
                 stop_words=None,
                 sublinear_tf=True
             )
-            vectors = self._vectorizer.fit_transform(texts).toarray()
-            # Сохраняем vectorizer
-            if self.vectorizer_path:
-                import pickle
-                with open(self.vectorizer_path, "wb") as f:
-                    pickle.dump(self._vectorizer, f)
-                print(f"  TF-IDF vectorizer сохранен в {self.vectorizer_path}")
+            vectors = self._vectorizer.fit_transform(texts).tocsr().astype(np.float32)
         else:
-            vectors = self._vectorizer.transform(texts).toarray()
-        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        norms[norms == 0] = 1
-        return vectors / norms
+            vectors = self._vectorizer.transform(texts).tocsr().astype(np.float32)
+        return normalize(vectors, norm="l2", axis=1, copy=False)
     
-    def save_vectorizer(self):
-        if self._vectorizer and self.vectorizer_path:
+    def save_vectorizer(self, target_path: Optional[Path] = None):
+        path = target_path or self.vectorizer_path
+        if self._vectorizer and path:
             import pickle
-            with open(self.vectorizer_path, "wb") as f:
+            with open(path, "wb") as f:
                 pickle.dump(self._vectorizer, f)
 
 
-def create_embeddings(chunks: List[DocChunk], embedder: Embedder) -> Tuple[np.ndarray, List[str]]:
+def create_embeddings(chunks: List[DocChunk], embedder: Embedder) -> Tuple[Any, List[str]]:
     """Создает эмбеддинги для всех чанков"""
     print(f"\n[3/5] Создание эмбеддингов для {len(chunks)} чанков...")
     
@@ -759,46 +865,235 @@ def create_embeddings(chunks: List[DocChunk], embedder: Embedder) -> Tuple[np.nd
 # ---------------------------------------------------------------------------
 # 4. Сохранение/загрузка данных
 # ---------------------------------------------------------------------------
-def save_data(chunks: List[DocChunk], graph: nx.DiGraph, vectors: np.ndarray, node_ids: List[str]):
+def save_data(chunks: List[DocChunk], graph: nx.Graph, vectors: Any,
+              node_ids: List[str], embedder: Optional[Embedder] = None):
     """Сохраняет все данные на диск"""
     print(f"\n[4/5] Сохранение данных...")
-    
-    # Чанки (полные)
-    chunks_data = []
-    for c in chunks:
-        d = asdict(c)
-        chunks_data.append(d)
-    with open(CHUNKS_FILE, "w", encoding="utf-8") as f:
-        json.dump(chunks_data, f, ensure_ascii=False, indent=1)
-    
-    # Чанки (только метаданные для быстрой загрузки)
-    chunks_meta = {c.id: {"title": c.title, "path": c.path} for c in chunks}
-    with open(CHUNKS_META_FILE, "w", encoding="utf-8") as f:
-        json.dump(chunks_meta, f, ensure_ascii=False)
-    
-    # Node IDs
-    with open(NODES_FILE, "w", encoding="utf-8") as f:
-        json.dump(node_ids, f)
-    
-    # Векторы (float32 для быстрой загрузки)
-    np.save(VECTORS_FILE, vectors.astype(np.float32))
-    
-    # Граф (pickle — быстрее graphml)
-    with open(GRAPH_PICKLE, "wb") as f:
-        pickle.dump(graph, f)
-    nx.write_graphml(graph, GRAPH_FILE)
-    
-    print(f"  Чанки: {CHUNKS_FILE}")
-    print(f"  Векторы: {VECTORS_FILE}")
+    import uuid
+    stage = DATA_DIR / f".build-staging-{uuid.uuid4().hex}"
+    stage.mkdir(parents=True, exist_ok=False)
+    try:
+        stage_chunks = stage / CHUNKS_JSONL_FILE.name
+        with open(stage_chunks, "w", encoding="utf-8", newline="\n") as f:
+            for c in chunks:
+                f.write(json.dumps(asdict(c), ensure_ascii=False, default=str) + "\n")
+
+        chunks_meta = {
+            c.id: {
+                "title": c.title, "path": c.path, "layer": c.layer,
+                "node_type": c.node_type, "level": c.level,
+                "content_preview": c.content[:500], "metadata": c.metadata,
+            }
+            for c in chunks
+        }
+        stage_meta = stage / CHUNKS_META_FILE.name
+        stage_meta.write_text(json.dumps(chunks_meta, ensure_ascii=False), encoding="utf-8")
+        stage_nodes = stage / NODES_FILE.name
+        stage_nodes.write_text(json.dumps(node_ids), encoding="utf-8")
+
+        if sp.issparse(vectors):
+            vector_target = VECTORS_SPARSE_FILE
+            stage_vectors = stage / vector_target.name
+            sp.save_npz(stage_vectors, vectors.astype(np.float32), compressed=True)
+            vector_format = "scipy-csr-npz"
+        else:
+            vector_target = VECTORS_FILE
+            stage_vectors = stage / vector_target.name
+            np.save(stage_vectors, np.asarray(vectors, dtype=np.float32))
+            vector_format = "numpy-float32"
+
+        stage_graph = stage / GRAPH_PICKLE.name
+        with open(stage_graph, "wb") as f:
+            pickle.dump(graph, f)
+        staged_files = [
+            (stage_chunks, CHUNKS_JSONL_FILE), (stage_meta, CHUNKS_META_FILE),
+            (stage_nodes, NODES_FILE), (stage_vectors, vector_target),
+            (stage_graph, GRAPH_PICKLE),
+        ]
+        if embedder is not None:
+            stage_vectorizer = stage / TFIDF_FILE.name
+            embedder.save_vectorizer(stage_vectorizer)
+            staged_files.append((stage_vectorizer, TFIDF_FILE))
+        if os.environ.get("RAG_WRITE_GRAPHML", "").strip().lower() in {"1", "true", "yes"}:
+            stage_graphml = stage / GRAPH_FILE.name
+            nx.write_graphml(graph, stage_graphml)
+            staged_files.append((stage_graphml, GRAPH_FILE))
+
+        stage_manifest = stage / INDEX_MANIFEST_FILE.name
+        stage_manifest.write_text(json.dumps({
+            "schema_version": 2,
+            "chunks": len(chunks), "unique_nodes": graph.number_of_nodes(),
+            "edges": graph.number_of_edges(), "vector_rows": int(vectors.shape[0]),
+            "vector_columns": int(vectors.shape[1]), "vector_format": vector_format,
+            "vector_file": vector_target.name,
+            "graph_type": type(graph).__name__,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        staged_files.append((stage_manifest, INDEX_MANIFEST_FILE))
+
+        # os.replace атомарен для файлов на одном томе. Старый рабочий индекс
+        # остаётся целым, пока весь новый набор не подготовлен в staging.
+        for source, target in staged_files:
+            os.replace(source, target)
+    finally:
+        resolved_stage = stage.resolve()
+        if resolved_stage.parent == DATA_DIR.resolve() and resolved_stage.name.startswith(".build-staging-"):
+            shutil.rmtree(resolved_stage, ignore_errors=True)
+
+    print(f"  Чанки: {CHUNKS_JSONL_FILE}")
+    print(f"  Векторы: {vector_target}")
     print(f"  Граф: {GRAPH_PICKLE}")
 
 
-def load_data(lightweight=False) -> Tuple[List[DocChunk], Optional[nx.DiGraph], Optional[np.ndarray], Optional[List[str]]]:
+def compact_search_index(vectors: Any, node_ids: List[str],
+                         valid_ids: set[str], batch_size: int = 512):
+    """Убирает дубли node_ids и конвертирует старый dense TF-IDF в CSR по частям."""
+    last_index: Dict[str, int] = {}
+    for index, node_id in enumerate(node_ids):
+        if node_id in valid_ids:
+            last_index[node_id] = index
+    ordered = sorted(last_index.items(), key=lambda item: item[1])
+    unique_ids = [node_id for node_id, _ in ordered]
+    indices = [index for _, index in ordered]
+    if sp.issparse(vectors):
+        return vectors[indices].tocsr().astype(np.float32), unique_ids
+    parts = []
+    for offset in range(0, len(indices), batch_size):
+        batch_indices = indices[offset:offset + batch_size]
+        dense = np.asarray(vectors[batch_indices], dtype=np.float32)
+        part = sp.csr_matrix(dense)
+        part.eliminate_zeros()
+        parts.append(part)
+    matrix = sp.vstack(parts, format="csr", dtype=np.float32) if parts else sp.csr_matrix((0, vectors.shape[1]), dtype=np.float32)
+    return matrix, unique_ids
+
+
+def save_enhanced_index(chunks: List[DocChunk], graph: nx.Graph,
+                        vectors: Any, node_ids: List[str],
+                        remove_dense_after_success: bool = False):
+    """Атомарно сохраняет расширенную топологию, не перезаписывая полный корпус ИТС."""
+    import uuid
+    stage = DATA_DIR / f".enhance-staging-{uuid.uuid4().hex}"
+    stage.mkdir(parents=True, exist_ok=False)
+    try:
+        stage_meta = stage / CHUNKS_META_FILE.name
+        meta_payload = {
+            c.id: {
+                "title": c.title, "path": c.path, "layer": c.layer,
+                "node_type": c.node_type, "level": c.level,
+                "content_preview": c.content[:500], "metadata": c.metadata,
+            }
+            for c in chunks
+        }
+        stage_meta.write_text(json.dumps(meta_payload, ensure_ascii=False), encoding="utf-8")
+        stage_nodes = stage / NODES_FILE.name
+        stage_nodes.write_text(json.dumps(node_ids), encoding="utf-8")
+        stage_vectors = stage / VECTORS_SPARSE_FILE.name
+        sp.save_npz(stage_vectors, vectors.tocsr().astype(np.float32), compressed=True)
+        stage_graph = stage / GRAPH_PICKLE.name
+        with stage_graph.open("wb") as handle:
+            pickle.dump(graph, handle)
+        stage_manifest = stage / INDEX_MANIFEST_FILE.name
+        stage_manifest.write_text(json.dumps({
+            "schema_version": 2, "build_mode": "incremental-enhance",
+            "chunks": len(chunks), "unique_nodes": graph.number_of_nodes(),
+            "edges": graph.number_of_edges(), "vector_rows": int(vectors.shape[0]),
+            "vector_columns": int(vectors.shape[1]), "vector_format": "scipy-csr-npz",
+            "vector_file": VECTORS_SPARSE_FILE.name,
+            "graph_type": type(graph).__name__,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        staged = [
+            (stage_meta, CHUNKS_META_FILE), (stage_nodes, NODES_FILE),
+            (stage_vectors, VECTORS_SPARSE_FILE), (stage_graph, GRAPH_PICKLE),
+            (stage_manifest, INDEX_MANIFEST_FILE),
+        ]
+        if os.environ.get("RAG_WRITE_GRAPHML", "").strip().lower() in {"1", "true", "yes"}:
+            stage_graphml = stage / GRAPH_FILE.name
+            nx.write_graphml(graph, stage_graphml)
+            staged.append((stage_graphml, GRAPH_FILE))
+        for source, target in staged:
+            os.replace(source, target)
+    finally:
+        resolved = stage.resolve()
+        if resolved.parent == DATA_DIR.resolve() and resolved.name.startswith(".enhance-staging-"):
+            shutil.rmtree(resolved, ignore_errors=True)
+    if remove_dense_after_success and VECTORS_FILE.exists():
+        # Это производный индекс, восстановимый из исходников; удаляем только
+        # после успешной атомарной установки CSR и manifest.
+        VECTORS_FILE.unlink()
+
+
+def save_compact_vectors_only(vectors: Any, node_ids: List[str], graph: nx.Graph,
+                              remove_dense_after_success: bool = True):
+    """Атомарно устанавливает CSR-индекс, освобождая место для enhance."""
+    import uuid
+    stage = DATA_DIR / f".compact-staging-{uuid.uuid4().hex}"
+    stage.mkdir(parents=True, exist_ok=False)
+    try:
+        stage_vectors = stage / VECTORS_SPARSE_FILE.name
+        sp.save_npz(stage_vectors, vectors.tocsr().astype(np.float32), compressed=True)
+        stage_nodes = stage / NODES_FILE.name
+        stage_nodes.write_text(json.dumps(node_ids), encoding="utf-8")
+        stage_manifest = stage / INDEX_MANIFEST_FILE.name
+        stage_manifest.write_text(json.dumps({
+            "schema_version": 2, "build_mode": "compact-base",
+            "chunks": graph.number_of_nodes(), "unique_nodes": graph.number_of_nodes(),
+            "edges": graph.number_of_edges(), "vector_rows": int(vectors.shape[0]),
+            "vector_columns": int(vectors.shape[1]), "vector_format": "scipy-csr-npz",
+            "vector_file": VECTORS_SPARSE_FILE.name,
+            "graph_type": type(graph).__name__,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        for source, target in (
+            (stage_vectors, VECTORS_SPARSE_FILE),
+            (stage_nodes, NODES_FILE),
+            (stage_manifest, INDEX_MANIFEST_FILE),
+        ):
+            os.replace(source, target)
+    finally:
+        resolved = stage.resolve()
+        if resolved.parent == DATA_DIR.resolve() and resolved.name.startswith(".compact-staging-"):
+            shutil.rmtree(resolved, ignore_errors=True)
+    if remove_dense_after_success and VECTORS_FILE.exists():
+        VECTORS_FILE.unlink()
+    if remove_dense_after_success and GRAPH_FILE.exists() and not os.environ.get("RAG_WRITE_GRAPHML"):
+        GRAPH_FILE.unlink()
+
+
+def _load_full_chunks() -> List[DocChunk]:
+    if CHUNKS_JSONL_FILE.exists():
+        chunks = []
+        with open(CHUNKS_JSONL_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    chunks.append(DocChunk(**json.loads(line)))
+        return chunks
+    with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
+        return [DocChunk(**d) for d in json.load(f)]
+
+
+def _load_vectors():
+    if INDEX_MANIFEST_FILE.exists():
+        try:
+            manifest = json.loads(INDEX_MANIFEST_FILE.read_text(encoding="utf-8"))
+            vector_file = manifest.get("vector_file")
+            if vector_file == VECTORS_SPARSE_FILE.name and VECTORS_SPARSE_FILE.exists():
+                return sp.load_npz(VECTORS_SPARSE_FILE).tocsr()
+            if vector_file == VECTORS_FILE.name and VECTORS_FILE.exists():
+                return np.load(VECTORS_FILE, mmap_mode="r")
+        except (OSError, json.JSONDecodeError):
+            pass
+    if VECTORS_SPARSE_FILE.exists():
+        return sp.load_npz(VECTORS_SPARSE_FILE).tocsr()
+    if VECTORS_FILE.exists():
+        return np.load(VECTORS_FILE, mmap_mode="r")
+    return None
+
+
+def load_data(lightweight=False) -> Tuple[List[DocChunk], Optional[nx.Graph], Any, Optional[List[str]]]:
     """Загружает данные с диска.
     
     lightweight=True: не загружает полный текст чанков и граф (быстрый поиск).
     """
-    if not CHUNKS_FILE.exists():
+    if not CHUNKS_JSONL_FILE.exists() and not CHUNKS_FILE.exists():
         return [], None, None, None
     
     if lightweight:
@@ -809,27 +1104,64 @@ def load_data(lightweight=False) -> Tuple[List[DocChunk], Optional[nx.DiGraph], 
                 chunks_meta = json.load(f)
         else:
             # Fallback: загружаем полные чанки, но берём только метаданные
-            with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
-                chunks_data = json.load(f)
+            chunks_data = [asdict(chunk) for chunk in _load_full_chunks()]
             chunks_meta = {d["id"]: {"title": d["title"], "path": d["path"]} for d in chunks_data}
         
-        chunks = [DocChunk(id=k, title=v["title"], path=v["path"], content="")
-                  for k, v in chunks_meta.items()]
+        # Топология графа нужна и быстрому поиску; pickle ~50 МБ и не требует
+        # загрузки полного текста 700+ МБ.
+        graph = None
+        if GRAPH_PICKLE.exists():
+            with open(GRAPH_PICKLE, "rb") as f:
+                graph = pickle.load(f)
+        elif GRAPH_FILE.exists():
+            graph = nx.read_graphml(GRAPH_FILE)
+
+        chunks = []
+        for key, value in chunks_meta.items():
+            graph_data = graph.nodes[key] if graph is not None and key in graph else {}
+            metadata = value.get("metadata", {})
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except json.JSONDecodeError:
+                    metadata = {}
+            chunks.append(DocChunk(
+                id=key, title=value["title"], path=value["path"],
+                content=value.get("content_preview", graph_data.get("content_preview", "")),
+                layer=int(value.get("layer", graph_data.get("layer", 4)) or 4),
+                node_type=value.get("node_type", graph_data.get("node_type", "knowledge")),
+                level=int(value.get("level", graph_data.get("level", 0)) or 0),
+                metadata=metadata,
+            ))
         
         vectors = None
         node_ids = None
-        if VECTORS_FILE.exists() and NODES_FILE.exists():
-            vectors = np.load(VECTORS_FILE)
+        if (VECTORS_SPARSE_FILE.exists() or VECTORS_FILE.exists()) and NODES_FILE.exists():
+            vectors = _load_vectors()
             with open(NODES_FILE, "r") as f:
                 node_ids = json.load(f)
-        
+
         print(f"Загружено (быстро): {len(chunks)} чанков (метаданные), векторы {vectors.shape if vectors is not None else '—'}")
-        return chunks, None, vectors, node_ids
-    
-    with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
-        chunks_data = json.load(f)
-    
-    chunks = [DocChunk(**d) for d in chunks_data]
+        return chunks, graph, vectors, node_ids
+
+    chunks = _load_full_chunks()
+    # Инкрементальный enhance хранит новые поля/UI-узлы в compact meta, а
+    # полный текст старого корпуса остаётся в chunks.json. Добавляем previews
+    # расширений, не теряя полный текст L4.
+    if CHUNKS_META_FILE.exists():
+        compact_meta = json.loads(CHUNKS_META_FILE.read_text(encoding="utf-8"))
+        existing_ids = {chunk.id for chunk in chunks}
+        for key, value in compact_meta.items():
+            if key in existing_ids:
+                continue
+            metadata = value.get("metadata", {})
+            chunks.append(DocChunk(
+                id=key, title=value.get("title", key),
+                content=value.get("content_preview", ""), path=value.get("path", key),
+                layer=int(value.get("layer", 4) or 4),
+                node_type=value.get("node_type", "knowledge"),
+                level=int(value.get("level", 0) or 0), metadata=metadata if isinstance(metadata, dict) else {},
+            ))
     
     graph = None
     if GRAPH_PICKLE.exists():
@@ -840,8 +1172,8 @@ def load_data(lightweight=False) -> Tuple[List[DocChunk], Optional[nx.DiGraph], 
     
     vectors = None
     node_ids = None
-    if VECTORS_FILE.exists() and NODES_FILE.exists():
-        vectors = np.load(VECTORS_FILE)
+    if (VECTORS_SPARSE_FILE.exists() or VECTORS_FILE.exists()) and NODES_FILE.exists():
+        vectors = _load_vectors()
         with open(NODES_FILE, "r") as f:
             node_ids = json.load(f)
     
@@ -854,8 +1186,8 @@ def load_data(lightweight=False) -> Tuple[List[DocChunk], Optional[nx.DiGraph], 
 class GraphRAG:
     """Graph RAG движок: объединяет поиск по графу и семантический поиск"""
     
-    def __init__(self, chunks: List[DocChunk], graph: nx.DiGraph,
-                 vectors: np.ndarray, node_ids: List[str],
+    def __init__(self, chunks: List[DocChunk], graph: nx.Graph,
+                 vectors: Any, node_ids: List[str],
                  embedder: Embedder):
         self.chunks = chunks
         self.chunk_map = {c.id: c for c in chunks}
@@ -865,7 +1197,44 @@ class GraphRAG:
         self.node_to_idx = {nid: i for i, nid in enumerate(node_ids)}
         self.embedder = embedder
     
-    def search(self, query: str, top_k: int = None, graph_expand: int = 10) -> Dict:
+    def _similarities(self, query: str) -> np.ndarray:
+        query_matrix = self.embedder.encode([query])
+        if sp.issparse(self.vectors):
+            if not sp.issparse(query_matrix):
+                query_matrix = sp.csr_matrix(np.asarray(query_matrix, dtype=np.float32))
+            result = self.vectors @ query_matrix.T
+            return result.toarray().ravel().astype(np.float32, copy=False)
+        query_vector = (
+            query_matrix.toarray().ravel() if sp.issparse(query_matrix)
+            else np.asarray(query_matrix).reshape(-1)
+        )
+        dtype = getattr(self.vectors, "dtype", np.float32)
+        query_vector = query_vector.astype(dtype, copy=False)
+        # Векторы нормализованы при сборке, поэтому dot == cosine similarity и
+        # не создаёт копию float64 размером ~1.8 ГБ.
+        return np.asarray(self.vectors @ query_vector, dtype=np.float32).ravel()
+
+    def _relation_edges(self, node_id: str, direction: str = "out"):
+        if self.graph is None or node_id not in self.graph:
+            return []
+        result = []
+        if self.graph.is_multigraph():
+            iterator = (
+                self.graph.out_edges(node_id, keys=True, data=True)
+                if direction == "out" else self.graph.in_edges(node_id, keys=True, data=True)
+            )
+            for source, target, _key, data in iterator:
+                result.append((source, target, data))
+        else:
+            iterator = (
+                self.graph.out_edges(node_id, data=True)
+                if direction == "out" else self.graph.in_edges(node_id, data=True)
+            )
+            result.extend(iterator)
+        return result
+
+    def search(self, query: str, top_k: int = None, graph_expand: int = 30,
+               graph_depth: int = 2) -> Dict:
         """
         4-слойный Graph RAG поиск:
         1. Векторный поиск по query → находит сценарии (L1), метаданные (L3), знания (L4)
@@ -876,18 +1245,23 @@ class GraphRAG:
             word_count = len(query.split())
             top_k = max(5, min(20, word_count * 3))
         
-        query_vec = self.embedder.encode([query])[0]
-        sims = cosine_similarity([query_vec], self.vectors)[0]
+        if self.vectors is None or not self.node_ids:
+            raise RuntimeError("Поисковый индекс не загружен. Выполните build.")
+        sims = self._similarities(query)
         
         top_indices = np.argsort(sims)[::-1]
         top_indices = [i for i in top_indices if sims[i] > 0.03][:top_k]
         
         # Собираем результаты векторного поиска
         vector_results = []
+        seen_vector_nodes = set()
         for idx in top_indices:
             node_id = self.node_ids[idx]
+            if node_id in seen_vector_nodes:
+                continue
             chunk = self.chunk_map.get(node_id)
             if chunk:
+                seen_vector_nodes.add(node_id)
                 vector_results.append({
                     "node_id": node_id,
                     "title": chunk.title,
@@ -900,50 +1274,80 @@ class GraphRAG:
                 })
         
         # Расширение по графу: межслойные и внутрислойные связи
-        graph_expanded_nodes = {}
-        for vr in vector_results:
-            nid = vr["node_id"]
-            if self.graph is not None and nid in self.graph:
-                for pred in self.graph.predecessors(nid):
-                    if pred not in graph_expanded_nodes:
-                        graph_expanded_nodes[pred] = 0.6
-                for succ in self.graph.successors(nid):
-                    edge_data = self.graph.get_edge_data(nid, succ)
-                    if edge_data:
+        relation_priority = {
+            "entry_doc": 0.98, "clarification": 0.95, "clarifies_field": 0.92,
+            "requires": 1.0, "required_reference": 1.0, "can_create_inline": 0.92,
+            "creates_on_basis": 0.96, "can_be_created_on_basis_of": 0.9,
+            "may_write_register": 0.92, "has_registrator": 0.92,
+            "opened_by_command": 0.95, "opens_object": 0.95,
+            "in_subsystem": 0.88, "contains_object": 0.86,
+            "has_field": 0.82, "field_type": 0.86,
+            "parent_child": 0.76, "child_parent": 0.7,
+            "references": 0.58, "shared_terms": 0.36,
+        }
+        graph_expanded_nodes: Dict[str, Dict[str, Any]] = {}
+        vector_node_ids = {item["node_id"] for item in vector_results}
+        for seed in vector_results:
+            seed_id = seed["node_id"]
+            queue = [(seed_id, max(float(seed["score"]), 0.35), 0, [seed_id], [])]
+            best_depth = {seed_id: 0}
+            while queue:
+                current, path_score, depth, path, relations = queue.pop(0)
+                if depth >= graph_depth:
+                    continue
+                candidates = []
+                for direction in ("out", "in"):
+                    for source, target, edge_data in self._relation_edges(current, direction):
+                        neighbor = target if direction == "out" else source
                         rel = edge_data.get("relation", "")
-                        # Приоритет: межслойные связи > parent_child > references > shared_terms
-                        if rel == "entry_doc":
-                            graph_expanded_nodes[succ] = 0.95
-                        elif rel == "clarification":
-                            graph_expanded_nodes[succ] = 0.9
-                        elif rel == "clarifies_field":
-                            graph_expanded_nodes[succ] = 0.85
-                        elif rel == "parent_child":
-                            graph_expanded_nodes[succ] = 0.7
-                        elif rel == "references":
-                            graph_expanded_nodes[succ] = 0.5
-                        elif rel == "shared_terms":
-                            graph_expanded_nodes[succ] = 0.4
+                        edge_weight = float(edge_data.get("weight", relation_priority.get(rel, 0.5)))
+                        semantic_weight = relation_priority.get(rel, edge_weight)
+                        if direction == "in":
+                            semantic_weight *= 0.88
+                        candidates.append((semantic_weight, neighbor, rel, direction, edge_data))
+                candidates.sort(key=lambda item: (-item[0], str(item[1]), item[2]))
+                for semantic_weight, neighbor, rel, direction, edge_data in candidates[:60]:
+                    if neighbor in path or neighbor not in self.chunk_map:
+                        continue
+                    new_depth = depth + 1
+                    new_score = path_score * semantic_weight * (0.88 ** (new_depth - 1))
+                    existing = graph_expanded_nodes.get(neighbor)
+                    if existing is None or new_score > existing["path_score"]:
+                        graph_expanded_nodes[neighbor] = {
+                            "path_score": new_score, "relation": rel,
+                            "direction": direction, "path": path + [neighbor],
+                            "relations": relations + [rel],
+                            "evidence": edge_data.get("evidence", ""),
+                        }
+                    if new_depth < best_depth.get(neighbor, graph_depth + 1):
+                        best_depth[neighbor] = new_depth
+                        queue.append((
+                            neighbor, new_score, new_depth,
+                            path + [neighbor], relations + [rel],
+                        ))
         
         graph_results = []
-        for nid, boost in graph_expanded_nodes.items():
-            if nid not in self.node_to_idx:
-                continue
-            if any(vr["node_id"] == nid for vr in vector_results):
+        for nid, expansion in graph_expanded_nodes.items():
+            if nid in vector_node_ids:
                 continue
             chunk = self.chunk_map.get(nid)
             if chunk:
-                idx = self.node_to_idx[nid]
-                score = float(sims[idx]) if idx < len(sims) else boost
+                idx = self.node_to_idx.get(nid)
+                vector_score = float(sims[idx]) if idx is not None and idx < len(sims) else 0.0
+                score = max(float(expansion["path_score"]), vector_score * 0.45 + float(expansion["path_score"]) * 0.55)
                 graph_results.append({
                     "node_id": nid,
                     "title": chunk.title,
                     "path": chunk.path,
-                    "score": score * boost,
+                    "score": score,
                     "content": chunk.content,
                     "source": "graph",
                     "layer": chunk.layer,
                     "node_type": chunk.node_type,
+                    "relation": expansion["relation"],
+                    "graph_path": expansion["path"],
+                    "graph_relations": expansion["relations"],
+                    "evidence": expansion["evidence"],
                 })
         
         graph_results.sort(key=lambda x: x["score"], reverse=True)
@@ -1236,6 +1640,11 @@ class LlmClient:
             self.api_key = ""
     
     def prompt(self, message: str, system: str = "") -> str:
+        if not llm_calls_enabled():
+            return (
+                "[Ошибка] LLM-вызовы отключены. Для намеренного вызова запустите "
+                "команду с --allow-llm или установите RAG_ENABLE_LLM=1."
+            )
         if self.provider == "wormsoft" and self.api_key:
             return self._prompt_openai(self.WORMSOFT_URL, "Wormsoft", message, system)
         elif self.provider == "deepseek" and self.api_key:
@@ -1326,7 +1735,8 @@ class LlmClient:
 # ---------------------------------------------------------------------------
 # 7. CLI команды
 # ---------------------------------------------------------------------------
-def cmd_build():
+def cmd_build(include_fields: bool = True, include_ui: bool = True,
+              include_forms: bool = False):
     """Сборка 4-слойного графа знаний"""
     print("=" * 60)
     print("  1С ERP Graph RAG - Построение 4-слойного графа знаний")
@@ -1340,6 +1750,25 @@ def cmd_build():
     print("\n[Layer 3] Парсинг метаданных...")
     code_chunks = parse_erp_code()
     chunks.extend(code_chunks)
+
+    # Точный структурный проход по XML: обязательные поля, зависимости,
+    # BasedOn, движения по регистрам, подсистемы, команды и формы.
+    print("\n[Layer 3+] Типизированные связи метаданных и интерфейса...")
+    try:
+        from erp_graph_enhancements import enrich_erp_metadata
+        typed_chunks, typed_stats = enrich_erp_metadata(
+            ERPCODE_DIR, code_chunks, DocChunk,
+            include_fields=include_fields,
+            include_ui=include_ui,
+            include_forms=include_forms,
+        )
+        chunks.extend(typed_chunks)
+        print(f"  Добавлено типизированных L3-узлов: {len(typed_chunks)}")
+        print(f"  Статистика: {json.dumps(typed_stats, ensure_ascii=False)}")
+    except Exception as exc:
+        # Базовый граф можно собрать, но ошибка явно попадает в отчёт/консоль.
+        print(f"  Ошибка типизированного прохода L3: {exc}")
+        raise
     
     # Layer 1: Парсим бизнес-сценарии
     print("\n[Layer 1] Извлечение бизнес-сценариев...")
@@ -1355,14 +1784,29 @@ def cmd_build():
     # Связываем слои
     print("\n[Inter-layer] Связывание сценариев с уточнениями и документами...")
     link_scenario_to_clarifications(scenarios, clarifications, metadata_chunks)
-    
+
+    from erp_graph_enhancements import ensure_unique_chunks, validate_graph
+    chunks, dedup_report = ensure_unique_chunks(chunks)
+    print(f"\n[Integrity] Уникализация ID: {json.dumps(dedup_report, ensure_ascii=False)}")
+
     graph = build_knowledge_graph(chunks)
     
     embedder = Embedder(vectorizer_path=TFIDF_FILE)
     vectors, node_ids = create_embeddings(chunks, embedder)
-    embedder.save_vectorizer()
-    
-    save_data(chunks, graph, vectors, node_ids)
+
+    validation = validate_graph(chunks, graph, vectors, node_ids)
+    validation["deduplication"] = dedup_report
+    if not validation.get("ok"):
+        raise RuntimeError("Граф собран с ошибками целостности: " + "; ".join(validation.get("errors", [])))
+
+    save_data(chunks, graph, vectors, node_ids, embedder=embedder)
+
+    validation_path = DATA_DIR / "validation_report.json"
+    validation_path.write_text(
+        json.dumps(validation, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+    print(f"  Отчёт целостности: {validation_path}")
     
     # Статистика
     print(f"\n[5/5] Итоговая статистика:")
@@ -1391,6 +1835,176 @@ def cmd_build():
     print(f"  Ребра межслойные: {inter_layer}")
     
     print("\n4-слойный граф знаний построен!")
+
+
+def cmd_enhance(include_ui: bool = True, include_forms: bool = False,
+                keep_dense: bool = False):
+    """Инкрементально обогащает существующий индекс без повторного парсинга ИТС."""
+    import gc
+    from erp_graph_enhancements import (
+        enrich_erp_metadata, ensure_unique_chunks, validate_graph,
+    )
+    print("=" * 60)
+    print("  Инкрементальное обогащение Graph RAG (без LLM)")
+    print("=" * 60)
+    chunks, base_graph, vectors, node_ids = load_data(lightweight=True)
+    if not chunks or base_graph is None or vectors is None or not node_ids:
+        raise RuntimeError("Базовый индекс не найден. Сначала выполните build.")
+    base_ids = {chunk.id for chunk in chunks}
+    metadata_chunks = [
+        chunk for chunk in chunks
+        if chunk.layer == 3 and chunk.node_type == "metadata"
+    ]
+    print(f"  Базовые узлы: {len(chunks)}, L3-объекты: {len(metadata_chunks)}")
+    additions, stats = enrich_erp_metadata(
+        ERPCODE_DIR, metadata_chunks, DocChunk,
+        include_fields=True, include_ui=include_ui,
+        include_forms=include_forms, relevant_fields_only=True,
+    )
+    merged_chunks, dedup = ensure_unique_chunks(chunks + additions)
+    print(f"  Новые L3/UI-узлы: {len(additions)}")
+    print(f"  Статистика L3+: {json.dumps(stats, ensure_ascii=False)}")
+    print(f"  Уникализация: {json.dumps(dedup, ensure_ascii=False)}")
+
+    extension_chunks = [chunk for chunk in merged_chunks if chunk.layer == 3]
+    extension_graph = build_knowledge_graph(extension_chunks)
+    enhanced_graph = nx.compose(nx.MultiDiGraph(base_graph), extension_graph)
+    del extension_graph
+    gc.collect()
+
+    print("  Конвертация плотного TF-IDF в разреженный CSR и удаление дублей ID...")
+    compact_vectors, compact_ids = compact_search_index(vectors, node_ids, base_ids)
+    validation = validate_graph(merged_chunks, enhanced_graph, compact_vectors, compact_ids)
+    validation["enhancement_stats"] = stats
+    validation["deduplication"] = dedup
+    if not validation.get("ok"):
+        raise RuntimeError("Ошибка целостности enhance: " + "; ".join(validation.get("errors", [])))
+
+    save_enhanced_index(
+        merged_chunks, enhanced_graph, compact_vectors, compact_ids,
+        remove_dense_after_success=not keep_dense,
+    )
+    if not keep_dense and GRAPH_FILE.exists() and not os.environ.get("RAG_WRITE_GRAPHML"):
+        GRAPH_FILE.unlink()
+    validation_path = DATA_DIR / "validation_report.json"
+    validation_path.write_text(
+        json.dumps(validation, ensure_ascii=False, indent=2, default=str), encoding="utf-8",
+    )
+    print(json.dumps({
+        "ok": True, "chunks": len(merged_chunks),
+        "graph_nodes": enhanced_graph.number_of_nodes(),
+        "graph_edges": enhanced_graph.number_of_edges(),
+        "vector_rows": compact_vectors.shape[0],
+        "vector_nonzero": int(compact_vectors.nnz),
+        "validation_report": str(validation_path),
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_refresh_clarifications():
+    """Обновляет рабочий L2 и его связи без пересборки L3/L4 и векторов."""
+    from erp_graph_enhancements import validate_graph
+
+    chunks, graph, vectors, node_ids = load_data(lightweight=True)
+    if not chunks or graph is None or vectors is None or not node_ids:
+        raise RuntimeError("Базовый индекс не найден. Сначала выполните build.")
+
+    old_l2 = [chunk for chunk in chunks if chunk.layer == 2]
+    scenarios = [chunk for chunk in chunks if chunk.layer == 1]
+    metadata_chunks = [
+        chunk for chunk in chunks
+        if chunk.layer == 3 and chunk.node_type == "metadata"
+    ]
+    clarifications = generate_clarification_nodes()
+    link_scenario_to_clarifications(scenarios, clarifications, metadata_chunks)
+
+    refreshed = nx.MultiDiGraph(graph)
+    old_l2_ids = {
+        node for node, data in refreshed.nodes(data=True)
+        if int(data.get("layer", 4) or 4) == 2
+    }
+    refreshed.remove_nodes_from(old_l2_ids)
+
+    def add_relation(source: str, target: str, relation: str, weight: float) -> None:
+        if source not in refreshed or target not in refreshed or source == target:
+            return
+        for _source, _target, data in refreshed.out_edges(source, data=True):
+            if _target == target and data.get("relation") == relation:
+                return
+        key = relation
+        suffix = 2
+        while refreshed.has_edge(source, target, key=key):
+            key = f"{relation}:{suffix}"
+            suffix += 1
+        refreshed.add_edge(
+            source, target, key=key, relation=relation, weight=float(weight),
+            evidence="static clarification catalog", properties="{}",
+        )
+
+    for clarification in clarifications:
+        refreshed.add_node(
+            clarification.id, title=clarification.title, layer=2,
+            node_type="clarification", level=clarification.level,
+            path=clarification.path, terms="",
+            content_preview=clarification.content[:500], metadata="{}",
+        )
+    for scenario in scenarios:
+        for target in scenario.clarifications:
+            add_relation(scenario.id, target, "clarification", 0.8)
+        for target in scenario.entry_docs:
+            add_relation(scenario.id, target, "entry_doc", 0.9)
+    for clarification in clarifications:
+        for target in clarification.entry_docs:
+            add_relation(clarification.id, target, "clarifies_field", 0.7)
+
+    merged_chunks = [chunk for chunk in chunks if chunk.layer != 2] + clarifications
+    compact_vectors, compact_ids = compact_search_index(
+        vectors, node_ids, {chunk.id for chunk in merged_chunks},
+    )
+    validation = validate_graph(merged_chunks, refreshed, compact_vectors, compact_ids)
+    if not validation.get("ok"):
+        raise RuntimeError(
+            "Ошибка целостности L2: " + "; ".join(validation.get("errors", []))
+        )
+    save_enhanced_index(merged_chunks, refreshed, compact_vectors, compact_ids)
+    validation["clarification_refresh"] = {
+        "old_nodes": len(old_l2), "new_nodes": len(clarifications),
+        "scenario_links": sum(len(item.clarifications) for item in scenarios),
+        "field_links": sum(len(item.entry_docs) for item in clarifications),
+    }
+    validation_path = DATA_DIR / "validation_report.json"
+    validation_path.write_text(
+        json.dumps(validation, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+    print(json.dumps({
+        "ok": True, **validation["clarification_refresh"],
+        "graph_nodes": refreshed.number_of_nodes(),
+        "graph_edges": refreshed.number_of_edges(),
+        "validation_report": str(validation_path),
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_compact_index(keep_dense: bool = False):
+    """Конвертирует старый dense TF-IDF в CSR без изменения графа."""
+    chunks, graph, vectors, node_ids = load_data(lightweight=True)
+    if not chunks or graph is None or vectors is None or not node_ids:
+        raise RuntimeError("Базовый индекс не найден")
+    compact_vectors, compact_ids = compact_search_index(
+        vectors, node_ids, {chunk.id for chunk in chunks},
+    )
+    if compact_vectors.shape[0] != len(compact_ids) or len(compact_ids) != len(set(compact_ids)):
+        raise RuntimeError("Компактный индекс не прошёл проверку ID")
+    save_compact_vectors_only(
+        compact_vectors, compact_ids, graph,
+        remove_dense_after_success=not keep_dense,
+    )
+    print(json.dumps({
+        "ok": True, "rows": compact_vectors.shape[0],
+        "columns": compact_vectors.shape[1], "nonzero": int(compact_vectors.nnz),
+        "duplicates_removed": len(node_ids) - len(compact_ids),
+        "saved_to": str(VECTORS_SPARSE_FILE),
+        "dense_removed": not keep_dense,
+    }, ensure_ascii=False, indent=2))
 
 
 def cmd_query(query: str, top_k: int = 10):
@@ -1432,10 +2046,10 @@ def cmd_query(query: str, top_k: int = 10):
 
 def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
     """Запускает API сервер для Graph RAG"""
-    from fastapi import FastAPI
+    from fastapi import FastAPI, HTTPException, Request
     import uvicorn
     
-    chunks, graph, vectors, node_ids = load_data()
+    chunks, graph, vectors, node_ids = load_data(lightweight=True)
     if not chunks:
         print("Данные не найдены. Сначала выполните: python graph_rag_1c_erp.py build")
         return
@@ -1472,21 +2086,146 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8321):
     def instruct_endpoint(q: str = "", provider: str = "wormsoft", model: str = "wormsoft/agent/high"):
         if not q:
             return {"error": "Parameter 'q' is required (например: /instruct?q=как создать заказ поставщику)"}
+        if not llm_calls_enabled():
+            raise HTTPException(
+                status_code=403,
+                detail="LLM отключена. Запустите сервер с RAG_ENABLE_LLM=1 только при намеренном разрешении.",
+            )
         result = rag.generate_instruction(q, provider=provider, model=model)
         return result
+
+    @app.post("/tasks/upload")
+    async def upload_task(request: Request, filename: str, max_file_mb: int = 250):
+        """Принимает raw binary body; не требует python-multipart и не держит файл в памяти."""
+        import uuid
+        from tz_pipeline import SUPPORTED_SUFFIXES, TASK_DATA_DIR, ingest_requirement_file
+        safe_name = Path(filename).name
+        if not safe_name or Path(safe_name).suffix.lower() not in SUPPORTED_SUFFIXES:
+            raise HTTPException(status_code=400, detail="Недопустимое имя или формат файла")
+        max_bytes = max_file_mb * 1024 * 1024
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > max_bytes:
+            raise HTTPException(status_code=413, detail=f"Лимит файла: {max_file_mb} МБ")
+        upload_dir = TASK_DATA_DIR / "_uploads" / uuid.uuid4().hex
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        upload_path = upload_dir / safe_name
+        total = 0
+        try:
+            with upload_path.open("wb") as handle:
+                async for chunk in request.stream():
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise HTTPException(status_code=413, detail=f"Лимит файла: {max_file_mb} МБ")
+                    handle.write(chunk)
+            task, saved = ingest_requirement_file(upload_path, max_file_mb=max_file_mb)
+            return {**task.summary(), "saved_to": str(saved), "upload_bytes": total}
+        except HTTPException:
+            upload_path.unlink(missing_ok=True)
+            raise
+        except Exception as exc:
+            upload_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/tasks/{task_id}/model")
+    def task_model(task_id: str):
+        from tz_pipeline import TASK_DATA_DIR, TaskGraphDocument
+        task_path = TASK_DATA_DIR / Path(task_id).name / "task_graph.json"
+        if not task_path.is_file():
+            raise HTTPException(status_code=404, detail="Task Graph не найден")
+        task = TaskGraphDocument.load(task_path)
+        return {
+            **task.summary(),
+            "nodes": [{"id": node, **data} for node, data in task.graph.nodes(data=True)],
+            "edges": [
+                {"source": source, "target": target, "key": key, **data}
+                for source, target, key, data in task.graph.edges(keys=True, data=True)
+            ],
+        }
+
+    @app.get("/tasks/{task_id}/questions")
+    def task_questions(task_id: str, limit: int = 10):
+        from tz_pipeline import (
+            TASK_DATA_DIR, GraphOnlyTzNormalizer, QuestionPlanner, TaskGraphDocument,
+            apply_mapping_answers,
+        )
+        task_path = TASK_DATA_DIR / Path(task_id).name / "task_graph.json"
+        if not task_path.is_file():
+            raise HTTPException(status_code=404, detail="Task Graph не найден")
+        task = TaskGraphDocument.load(task_path)
+        mappings = GraphOnlyTzNormalizer().normalize(task, graph)
+        answers = _load_task_answers(task_path.parent)
+        mappings = apply_mapping_answers(mappings, answers, graph)
+        planner = QuestionPlanner()
+        answered_ids = _answer_ids(answers)
+        questions = planner.plan(
+            task, mappings=mappings, answered_ids=answered_ids,
+            limit=max(1, min(limit, 100)),
+        )
+        return {
+            "task_id": task_id,
+            "candidate_count": len(planner.plan(
+                task, mappings=mappings, answered_ids=answered_ids,
+            )),
+            "questions": [asdict(question) for question in questions],
+        }
+
+    @app.post("/tasks/{task_id}/answers")
+    def task_answers(task_id: str, answers: Dict[str, Any]):
+        from tz_pipeline import TASK_DATA_DIR
+        task_dir = TASK_DATA_DIR / Path(task_id).name
+        if not (task_dir / "task_graph.json").is_file():
+            raise HTTPException(status_code=404, detail="Task Graph не найден")
+        target = task_dir / "answers.json"
+        existing = _load_task_answers(task_dir)
+        existing_map = existing.get("answers", existing) if isinstance(existing, dict) else {}
+        new_map = answers.get("answers", answers) if isinstance(answers, dict) else {}
+        merged = {**existing_map, **new_map}
+        target.write_text(
+            json.dumps({"answers": merged}, ensure_ascii=False, indent=2), encoding="utf-8",
+        )
+        return {"task_id": task_id, "saved_to": str(target), "answers": len(merged)}
+
+    @app.get("/tasks/{task_id}/plan")
+    def task_plan(task_id: str, question_limit: int = 10):
+        from erp_graph_enhancements import EndToEndProcessPlanner
+        from tz_pipeline import (
+            TASK_DATA_DIR, GraphOnlyTzNormalizer, QuestionPlanner, TaskGraphDocument,
+            apply_mapping_answers,
+        )
+        task_path = TASK_DATA_DIR / Path(task_id).name / "task_graph.json"
+        if not task_path.is_file():
+            raise HTTPException(status_code=404, detail="Task Graph не найден")
+        task = TaskGraphDocument.load(task_path)
+        mappings = GraphOnlyTzNormalizer().normalize(task, graph)
+        answers = _load_task_answers(task_path.parent)
+        mappings = apply_mapping_answers(mappings, answers, graph)
+        questions = QuestionPlanner().plan(
+            task, mappings=mappings, answered_ids=_answer_ids(answers),
+            limit=max(1, min(question_limit, 100)),
+        )
+        process = EndToEndProcessPlanner(graph).plan(task.graph, mappings)
+        return {
+            "task": task.summary(), "normalization": mappings,
+            "process": process,
+            "questions": [asdict(question) for question in questions],
+            "ready_for_instruction": process.get("ready", False) and not any(question.blocking for question in questions),
+        }
     
     @app.get("/graph/stats")
     def graph_stats():
         return {
             "nodes": graph.number_of_nodes(),
             "edges": graph.number_of_edges(),
-            "density": nx.density(graph)
+            "density": nx.density(graph),
+            "graph_type": type(graph).__name__,
         }
     
     print(f"API сервер запущен на http://{host}:{port}")
     print(f"  GET/POST /query?q=<вопрос>  - Graph RAG запрос")
     print(f"  GET  /graph/stats           - статистика графа")
     print(f"  GET  /health                - проверка")
+    print(f"  POST /tasks/upload?filename=<имя> - потоковая загрузка ТЗ (raw body)")
+    print(f"  GET  /tasks/<id>/questions  - моделирующие вопросы")
     print()
     print(f"Пример в браузере: http://{host}:{port}/query?q=как создать заказ поставщику")
     uvicorn.run(app, host=host, port=port)
@@ -1610,7 +2349,9 @@ def cmd_clarify(query: str = ""):
             l2_questions = [r["title"] for r in by_layer.get("clarifications", [])]
             
             questions = None
-            api_key = os.environ.get("WORMSOFT_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+            api_key = None
+            if llm_calls_enabled():
+                api_key = os.environ.get("WORMSOFT_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
             if api_key:
                 provider, model = "wormsoft", "wormsoft/agent/high"
                 print(f"\n--- УТОЧНЯЮЩИЕ ВОПРОСЫ (Wormsoft) ---")
@@ -1806,6 +2547,184 @@ def cmd_instruct(query: str, provider: str = "wormsoft", model: str = "wormsoft/
     print(f"\n💾 Сохранено: {fpath}")
 
 
+def cmd_ingest_tz(file_path: str, task_id: str = "", max_file_mb: int = 250):
+    """Локально разбирает ТЗ и сохраняет персональный Task Graph."""
+    from tz_pipeline import ingest_requirement_file
+    task, saved = ingest_requirement_file(
+        Path(file_path), task_id=task_id or None, max_file_mb=max_file_mb,
+    )
+    print(json.dumps({**task.summary(), "saved_to": str(saved)}, ensure_ascii=False, indent=2))
+
+
+def _resolve_task_graph_path(task: str) -> Path:
+    from tz_pipeline import TASK_DATA_DIR
+    candidate = Path(task)
+    if candidate.is_file():
+        return candidate
+    return TASK_DATA_DIR / task / "task_graph.json"
+
+
+def _load_task_answers(task_dir: Path) -> Dict[str, Any]:
+    path = task_dir / "answers.json"
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _answer_ids(answers: Dict[str, Any]) -> set[str]:
+    payload = answers.get("answers", answers) if isinstance(answers, dict) else {}
+    return set(payload) if isinstance(payload, dict) else set()
+
+
+def cmd_normalize_tz(task: str, output: str = ""):
+    """Переводит Task Graph на язык ERP детерминированно, без LLM."""
+    from tz_pipeline import GraphOnlyTzNormalizer, TaskGraphDocument, apply_mapping_answers
+    task_path = _resolve_task_graph_path(task)
+    task_graph = TaskGraphDocument.load(task_path)
+    _, graph, _, _ = load_data(lightweight=True)
+    if graph is None:
+        raise RuntimeError("Статический граф не найден. Выполните build.")
+    payload = GraphOnlyTzNormalizer().normalize(task_graph, graph)
+    payload = apply_mapping_answers(payload, _load_task_answers(task_path.parent), graph)
+    output_path = Path(output) if output else task_path.parent / "erp_mapping.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({
+        "task_id": task_graph.task_id,
+        "mappings": len(payload.get("mappings", [])),
+        "mapping_gaps": len(payload.get("mapping_gaps", [])),
+        "saved_to": str(output_path),
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_task_questions(task: str, limit: int = 10, all_questions: bool = False,
+                       materialize: bool = False):
+    from tz_pipeline import (
+        GraphOnlyTzNormalizer, QuestionPlanner, TaskGraphDocument, apply_mapping_answers,
+    )
+    task_path = _resolve_task_graph_path(task)
+    task_graph = TaskGraphDocument.load(task_path)
+    _, graph, _, _ = load_data(lightweight=True)
+    if graph is None:
+        raise RuntimeError("Статический граф не найден. Выполните build.")
+    mappings = GraphOnlyTzNormalizer().normalize(task_graph, graph)
+    answers = _load_task_answers(task_path.parent)
+    mappings = apply_mapping_answers(mappings, answers, graph)
+    planner = QuestionPlanner()
+    questions = planner.plan(
+        task_graph, mappings=mappings, answered_ids=_answer_ids(answers),
+        limit=None if all_questions else limit,
+    )
+    if materialize:
+        planner.materialize(task_graph, questions)
+        task_graph.save(task_path.parent.parent)
+    print(json.dumps({
+        "task_id": task_graph.task_id,
+        "candidate_count": len(planner.plan(
+            task_graph, mappings=mappings, answered_ids=_answer_ids(answers),
+        )),
+        "returned": len(questions),
+        "questions": [asdict(question) for question in questions],
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_answer_task(task: str, question_id: str, answer: str):
+    """Сохраняет ответ и делает следующий раунд вопросов адаптивным."""
+    task_path = _resolve_task_graph_path(task)
+    if not task_path.is_file():
+        raise FileNotFoundError(f"Task Graph не найден: {task_path}")
+    current = _load_task_answers(task_path.parent)
+    answer_map = current.get("answers", current) if isinstance(current, dict) else {}
+    if not isinstance(answer_map, dict):
+        answer_map = {}
+    answer_map[str(question_id)] = answer
+    target = task_path.parent / "answers.json"
+    target.write_text(
+        json.dumps({"answers": answer_map}, ensure_ascii=False, indent=2), encoding="utf-8",
+    )
+    print(json.dumps({
+        "task_id": task, "question_id": question_id,
+        "answers_saved": len(answer_map), "saved_to": str(target),
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_plan_task(task: str, output: str = "", dependency_depth: int = 3):
+    """Строит сквозной офлайн-план: ERP-объекты, документы, регистры, НСИ и вопросы."""
+    from erp_graph_enhancements import EndToEndProcessPlanner, render_offline_instruction
+    from tz_pipeline import (
+        GraphOnlyTzNormalizer, QuestionPlanner, TaskGraphDocument, apply_mapping_answers,
+    )
+    task_path = _resolve_task_graph_path(task)
+    task_graph = TaskGraphDocument.load(task_path)
+    _, graph, _, _ = load_data(lightweight=True)
+    if graph is None:
+        raise RuntimeError("Статический граф не найден. Выполните build.")
+    normalization = GraphOnlyTzNormalizer().normalize(task_graph, graph)
+    answers = _load_task_answers(task_path.parent)
+    normalization = apply_mapping_answers(normalization, answers, graph)
+    questions = QuestionPlanner().plan(
+        task_graph, mappings=normalization, answered_ids=_answer_ids(answers),
+    )
+    process = EndToEndProcessPlanner(graph).plan(
+        task_graph.graph, normalization, dependency_depth=dependency_depth,
+    )
+    payload = {
+        "task": task_graph.summary(), "normalization": normalization,
+        "process": process, "questions": [asdict(question) for question in questions],
+        "ready_for_instruction": process.get("ready", False) and not any(q.blocking for q in questions),
+    }
+    output_path = Path(output) if output else task_path.parent / "process_plan.json"
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8",
+    )
+    instruction_path = output_path.parent / "instruction_draft.md"
+    instruction_path.write_text(
+        render_offline_instruction(task_graph.summary(), process, questions), encoding="utf-8",
+    )
+    print(json.dumps({
+        "task_id": task_graph.task_id,
+        "erp_objects": len(process.get("erp_objects", [])),
+        "documents": len(process.get("documents_in_requirement_order", [])),
+        "chain_gaps": len(process.get("chain_gaps", [])),
+        "questions": len(questions), "saved_to": str(output_path),
+        "instruction_draft": str(instruction_path),
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_dependencies(target: str, max_depth: int = 5, include_optional: bool = False):
+    from erp_graph_enhancements import DependencyPlanner
+    _, graph, _, _ = load_data(lightweight=True)
+    if graph is None:
+        raise RuntimeError("Граф не найден. Выполните build.")
+    result = DependencyPlanner(graph).plan(
+        target, max_depth=max_depth, include_optional=include_optional,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+
+def cmd_document_chain(start: str, end: str = "", max_depth: int = 10):
+    from erp_graph_enhancements import DocumentChainPlanner
+    _, graph, _, _ = load_data(lightweight=True)
+    if graph is None:
+        raise RuntimeError("Граф не найден. Выполните build.")
+    result = DocumentChainPlanner(graph).plan(start, end or None, max_depth=max_depth)
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+
+def cmd_validate():
+    from erp_graph_enhancements import validate_graph
+    chunks, graph, vectors, node_ids = load_data()
+    if not chunks or graph is None:
+        raise RuntimeError("Граф не найден. Выполните build.")
+    report = validate_graph(chunks, graph, vectors, node_ids)
+    target = DATA_DIR / "validation_report.json"
+    target.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({**report, "saved_to": str(target)}, ensure_ascii=False, indent=2))
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1814,6 +2733,23 @@ if __name__ == "__main__":
     sub = parser.add_subparsers(dest="command", help="Команда")
     
     p_build = sub.add_parser("build", help="Построить граф знаний")
+    p_build.add_argument("--no-fields", action="store_true", help="Не создавать отдельные узлы реквизитов L3")
+    p_build.add_argument("--no-ui", action="store_true", help="Не разбирать подсистемы и CommandInterface")
+    p_build.add_argument("--with-forms", action="store_true",
+                         help="Дополнительно разобрать поля форм (существенно увеличивает граф)")
+
+    p_enhance = sub.add_parser("enhance", help="Обогатить существующий индекс типизированными L3/UI-связями")
+    p_enhance.add_argument("--no-ui", action="store_true", help="Не разбирать подсистемы и CommandInterface")
+    p_enhance.add_argument("--with-forms", action="store_true", help="Разобрать поля форм (ресурсоёмко)")
+    p_enhance.add_argument("--keep-dense", action="store_true", help="Не удалять старый vectors.npy после проверки CSR")
+
+    p_compact = sub.add_parser("compact-index", help="Преобразовать старый dense TF-IDF в разреженный CSR")
+    p_compact.add_argument("--keep-dense", action="store_true")
+
+    sub.add_parser(
+        "refresh-clarifications",
+        help="Обновить расширенный каталог L2-вопросов без пересборки корпуса",
+    )
     
     p_query = sub.add_parser("query", help="Выполнить запрос")
     p_query.add_argument("query", type=str, help="Текст запроса")
@@ -1827,6 +2763,10 @@ if __name__ == "__main__":
     p_interactive.add_argument("--mode", type=str, default="clarify",
                                choices=["clarify", "direct"],
                                help="clarify — с уточняющими вопросами (по умолчанию), direct — прямой ответ")
+    p_interactive.add_argument("--file", type=str, default="",
+                               help="Путь к файлу с задачей (ТЗ). Содержимое файла станет первым запросом")
+    p_interactive.add_argument("--allow-llm", action="store_true",
+                               help="Явно разрешить LLM-вызовы в интерактивном режиме")
     p_interactive.add_argument("query", type=str, nargs="*",
                                help="Задача (можно без кавычек — все слова объединяются). Пусто — ввод с клавиатуры")
     
@@ -1834,22 +2774,102 @@ if __name__ == "__main__":
     p_instruct.add_argument("query", type=str, help="Текст запроса")
     p_instruct.add_argument("--provider", type=str, default="wormsoft", help="Провайдер LLM (wormsoft/deepseek/ollama)")
     p_instruct.add_argument("--model", type=str, default="wormsoft/agent/high", help="Модель LLM")
+    p_instruct.add_argument("--allow-llm", action="store_true",
+                            help="Явно разрешить обращение к выбранной LLM")
+
+    p_ingest = sub.add_parser("ingest-tz", help="Локально разобрать файл ТЗ в Task Graph")
+    p_ingest.add_argument("file", type=str, help="DOCX/TXT/MD/XLSX/PDF с ТЗ")
+    p_ingest.add_argument("--task-id", type=str, default="")
+    p_ingest.add_argument("--max-file-mb", type=int, default=250)
+
+    p_normalize = sub.add_parser("normalize-tz", help="Офлайн-перевод Task Graph на язык ERP")
+    p_normalize.add_argument("task", type=str, help="Task ID или путь к task_graph.json")
+    p_normalize.add_argument("--output", type=str, default="")
+
+    p_questions = sub.add_parser("task-questions", help="Адаптивные моделирующие вопросы по ТЗ")
+    p_questions.add_argument("task", type=str, help="Task ID или путь к task_graph.json")
+    p_questions.add_argument("--limit", type=int, default=10, help="Размер одного раунда")
+    p_questions.add_argument("--all", action="store_true", help="Вернуть все релевантные вопросы")
+    p_questions.add_argument("--materialize", action="store_true", help="Сохранить вопросы узлами Task Graph")
+
+    p_answer = sub.add_parser("answer-task", help="Сохранить ответ на моделирующий вопрос")
+    p_answer.add_argument("task", type=str, help="Task ID или путь к task_graph.json")
+    p_answer.add_argument("question_id", type=str)
+    p_answer.add_argument("answer", type=str, help="Текст ответа или точный ERP node ID")
+
+    p_plan_task = sub.add_parser("plan-task", help="Сквозной офлайн-план процесса по Task Graph")
+    p_plan_task.add_argument("task", type=str, help="Task ID или путь к task_graph.json")
+    p_plan_task.add_argument("--output", type=str, default="")
+    p_plan_task.add_argument("--dependency-depth", type=int, default=3)
+
+    p_dependencies = sub.add_parser("dependencies", help="Обратная цепочка зависимостей объекта ERP")
+    p_dependencies.add_argument("target", type=str, help="ID или название объекта")
+    p_dependencies.add_argument("--max-depth", type=int, default=5)
+    p_dependencies.add_argument("--include-optional", action="store_true")
+
+    p_chain = sub.add_parser("document-chain", help="Цепочка документов и регистров")
+    p_chain.add_argument("start", type=str, help="Начальный документ")
+    p_chain.add_argument("end", type=str, nargs="?", default="", help="Конечный документ")
+    p_chain.add_argument("--max-depth", type=int, default=10)
+
+    sub.add_parser("validate", help="Проверить целостность графа и поискового индекса")
     
     args = parser.parse_args()
     
     if args.command == "build":
-        cmd_build()
+        cmd_build(
+            include_fields=not args.no_fields,
+            include_ui=not args.no_ui,
+            include_forms=args.with_forms,
+        )
+    elif args.command == "enhance":
+        cmd_enhance(
+            include_ui=not args.no_ui,
+            include_forms=args.with_forms,
+            keep_dense=args.keep_dense,
+        )
+    elif args.command == "compact-index":
+        cmd_compact_index(keep_dense=args.keep_dense)
+    elif args.command == "refresh-clarifications":
+        cmd_refresh_clarifications()
     elif args.command == "query":
         cmd_query(args.query, args.top_k)
     elif args.command == "serve":
         cmd_serve(args.host, args.port)
     elif args.command == "interactive":
         query = " ".join(args.query) if args.query else ""
+        if args.file:
+            try:
+                from tz_pipeline import RequirementFileLoader
+                query = RequirementFileLoader().load(args.file).text.strip()
+            except Exception as e:
+                print(f"Ошибка чтения файла {args.file}: {e}")
+                sys.exit(2)
+        if args.allow_llm:
+            os.environ["RAG_ENABLE_LLM"] = "1"
         if args.mode == "clarify":
             cmd_clarify(query)
         else:
             cmd_interactive(query)
     elif args.command == "instruct":
+        if args.allow_llm:
+            os.environ["RAG_ENABLE_LLM"] = "1"
         cmd_instruct(args.query, args.provider, args.model)
+    elif args.command == "ingest-tz":
+        cmd_ingest_tz(args.file, args.task_id, args.max_file_mb)
+    elif args.command == "normalize-tz":
+        cmd_normalize_tz(args.task, args.output)
+    elif args.command == "task-questions":
+        cmd_task_questions(args.task, args.limit, args.all, args.materialize)
+    elif args.command == "answer-task":
+        cmd_answer_task(args.task, args.question_id, args.answer)
+    elif args.command == "plan-task":
+        cmd_plan_task(args.task, args.output, args.dependency_depth)
+    elif args.command == "dependencies":
+        cmd_dependencies(args.target, args.max_depth, args.include_optional)
+    elif args.command == "document-chain":
+        cmd_document_chain(args.start, args.end, args.max_depth)
+    elif args.command == "validate":
+        cmd_validate()
     else:
         parser.print_help()

@@ -1,0 +1,164 @@
+Загружено (быстро): 97353 чанков (метаданные), векторы (48788, 5000)
+{
+  "target": "ERPcode/Documents/АктКонтроляКачестваТоваров",
+  "max_depth": 2,
+  "tree": {
+    "node_id": "ERPcode/Documents/АктКонтроляКачестваТоваров",
+    "title": "Документ Акт контроля качества товаров",
+    "node_type": "metadata",
+    "dependencies": [
+      {
+        "node_id": "ERPcode/Catalogs/КонтролируемыеПартии",
+        "relation": "requires",
+        "field": "КонтролируемаяПартия",
+        "field_id": "ERPcode/Documents/АктКонтроляКачестваТоваров/Fields/КонтролируемаяПартия",
+        "create_on_input": "DontUse",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\АктКонтроляКачестваТоваров.xml",
+        "required": true,
+        "inline": false,
+        "inline_candidate": false,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-precreate-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/КонтролируемыеПартии",
+          "title": "Справочник Контролируемые партии",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/Организации",
+        "relation": "requires",
+        "field": "Организация",
+        "field_id": "ERPcode/Documents/АктКонтроляКачестваТоваров/Fields/Организация",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\АктКонтроляКачестваТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/Организации",
+          "title": "Справочник Организации",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Валюты",
+              "relation": "requires",
+              "field": "ВалютаРегламентированногоУчета",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/ВалютаРегламентированногоУчета",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Валюты",
+                "title": "Справочник Валюты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СтраныМира",
+              "relation": "requires",
+              "field": "СтранаРегистрации",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/СтранаРегистрации",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СтраныМира",
+                "title": "Справочник Страны мира",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+                "title": "Перечисление Статусы организаций подразделений",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ЮрФизЛицо",
+              "relation": "requires",
+              "field": "ЮрФизЛицо",
+              "field_id": "ERPcode/Catalogs/Организации/Fields/ЮрФизЛицо",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Организации.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ЮрФизЛицо",
+                "title": "Перечисление Юр/Физлицо",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СтатусыАктовКонтроляКачества",
+        "relation": "requires",
+        "field": "Статус",
+        "field_id": "ERPcode/Documents/АктКонтроляКачестваТоваров/Fields/Статус",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\АктКонтроляКачестваТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СтатусыАктовКонтроляКачества",
+          "title": "Перечисление Статусы актов контроля качества",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      }
+    ]
+  }
+}

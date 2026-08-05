@@ -1,0 +1,669 @@
+Загружено (быстро): 97353 чанков (метаданные), векторы (48788, 5000)
+{
+  "target": "ERPcode/Documents/ОтборРазмещениеТоваров",
+  "max_depth": 2,
+  "tree": {
+    "node_id": "ERPcode/Documents/ОтборРазмещениеТоваров",
+    "title": "Документ Отбор (размещение) товаров",
+    "node_type": "metadata",
+    "dependencies": [
+      {
+        "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+        "relation": "requires",
+        "field": "Помещение",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/Помещение",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+          "title": "Справочник Складские помещения",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/СкладскиеЯчейки",
+        "relation": "requires",
+        "field": "ЗонаОтгрузки",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/ЗонаОтгрузки",
+        "create_on_input": "DontUse",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": false,
+        "inline_candidate": false,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-precreate-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/СкладскиеЯчейки",
+          "title": "Справочник Складские ячейки",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+              "relation": "requires",
+              "field": "Помещение",
+              "field_id": "ERPcode/Catalogs/СкладскиеЯчейки/Fields/Помещение",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СкладскиеЯчейки.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+                "title": "Справочник Складские помещения",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ТипыСкладскихЯчеек",
+              "relation": "requires",
+              "field": "ТипСкладскойЯчейки",
+              "field_id": "ERPcode/Catalogs/СкладскиеЯчейки/Fields/ТипСкладскойЯчейки",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СкладскиеЯчейки.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ТипыСкладскихЯчеек",
+                "title": "Перечисление Типы складских ячеек",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/Склады",
+        "relation": "requires",
+        "field": "Склад",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/Склад",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/Склады",
+          "title": "Справочник Склады",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/ВидыЦен",
+              "relation": "requires",
+              "field": "РозничныйВидЦены",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/РозничныйВидЦены",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/ВидыЦен",
+                "title": "Справочник Виды цен (Колонки прайс-листа)",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Контрагенты",
+              "relation": "requires",
+              "field": "Поклажедержатель",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/Поклажедержатель",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Контрагенты",
+                "title": "Справочник Контрагенты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Организации",
+              "relation": "requires",
+              "field": "Поклажедержатель",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/Поклажедержатель",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Организации",
+                "title": "Справочник Организации",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+              "relation": "requires",
+              "field": "Подразделение",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/Подразделение",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+                "title": "Справочник Структура предприятия",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ВидыПоклажедержателей",
+              "relation": "requires",
+              "field": "ВидПоклажедержателя",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/ВидПоклажедержателя",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ВидыПоклажедержателей",
+                "title": "Перечисление Виды поклажедержателей",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ВыборГруппыСкладов",
+              "relation": "requires",
+              "field": "ВыборГруппы",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/ВыборГруппы",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ВыборГруппыСкладов",
+                "title": "Перечисление Выбор группы складов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ИсточникиИнформацииОЦенахДляПечати",
+              "relation": "requires",
+              "field": "ИсточникИнформацииОЦенахДляПечати",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/ИсточникИнформацииОЦенахДляПечати",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ИсточникиИнформацииОЦенахДляПечати",
+                "title": "Перечисление Источники информации о ценах для печати",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ТипыСкладов",
+              "relation": "requires",
+              "field": "ТипСклада",
+              "field_id": "ERPcode/Catalogs/Склады/Fields/ТипСклада",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\Склады.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ТипыСкладов",
+                "title": "Перечисление Типы складов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров",
+        "relation": "requires",
+        "field": "Распоряжение",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/Распоряжение",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров",
+          "title": "Документ Ордер на перемещение товаров",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Приоритеты",
+              "relation": "requires",
+              "field": "Приоритет",
+              "field_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров/Fields/Приоритет",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОрдерНаПеремещениеТоваров.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Приоритеты",
+                "title": "Справочник Приоритеты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+              "relation": "requires",
+              "field": "ПомещениеОтправитель",
+              "field_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров/Fields/ПомещениеОтправитель",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОрдерНаПеремещениеТоваров.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+                "title": "Справочник Складские помещения",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СкладскиеЯчейки",
+              "relation": "requires",
+              "field": "ЗонаОтгрузки",
+              "field_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров/Fields/ЗонаОтгрузки",
+              "create_on_input": "DontUse",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОрдерНаПеремещениеТоваров.xml",
+              "required": true,
+              "inline": false,
+              "inline_candidate": false,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-precreate-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СкладскиеЯчейки",
+                "title": "Справочник Складские ячейки",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Склады",
+              "relation": "requires",
+              "field": "Склад",
+              "field_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров/Fields/Склад",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОрдерНаПеремещениеТоваров.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Склады",
+                "title": "Справочник Склады",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыОрдеровНаПеремещение",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Documents/ОрдерНаПеремещениеТоваров/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОрдерНаПеремещениеТоваров.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыОрдеровНаПеремещение",
+                "title": "Перечисление Статусы ордеров на перемещение",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Documents/РасходныйОрдерНаТовары",
+        "relation": "requires",
+        "field": "Распоряжение",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/Распоряжение",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Documents/РасходныйОрдерНаТовары",
+          "title": "Документ Расходный ордер на товары",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Приоритеты",
+              "relation": "requires",
+              "field": "Приоритет",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/Приоритет",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Приоритеты",
+                "title": "Справочник Приоритеты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+              "relation": "requires",
+              "field": "Помещение",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/Помещение",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СкладскиеПомещения",
+                "title": "Справочник Складские помещения",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/СкладскиеЯчейки",
+              "relation": "requires",
+              "field": "ЗонаОтгрузки",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/ЗонаОтгрузки",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/СкладскиеЯчейки",
+                "title": "Справочник Складские ячейки",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Склады",
+              "relation": "requires",
+              "field": "Склад",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/Склад",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Склады",
+                "title": "Справочник Склады",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Documents/ЗаданиеНаПеревозку",
+              "relation": "requires",
+              "field": "ЗаданиеНаПеревозку",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/ЗаданиеНаПеревозку",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Documents/ЗаданиеНаПеревозку",
+                "title": "Документ Задание на перевозку",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Documents/Рейс",
+              "relation": "requires",
+              "field": "ЗаданиеНаПеревозку",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/ЗаданиеНаПеревозку",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Documents/Рейс",
+                "title": "Документ Рейс",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СкладскиеОперации",
+              "relation": "requires",
+              "field": "СкладскаяОперация",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/СкладскаяОперация",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СкладскиеОперации",
+                "title": "Перечисление Складские операции",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыРасходныхОрдеров",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Documents/РасходныйОрдерНаТовары/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\РасходныйОрдерНаТовары.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыРасходныхОрдеров",
+                "title": "Перечисление Статусы расходных ордеров",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/ВидыОперацийОтбораРазмещенияТоваров",
+        "relation": "requires",
+        "field": "ВидОперации",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/ВидОперации",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/ВидыОперацийОтбораРазмещенияТоваров",
+          "title": "Перечисление Виды операций отбора размещения товаров",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СтатусыОтборовРазмещенийТоваров",
+        "relation": "requires",
+        "field": "Статус",
+        "field_id": "ERPcode/Documents/ОтборРазмещениеТоваров/Fields/Статус",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ОтборРазмещениеТоваров.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СтатусыОтборовРазмещенийТоваров",
+          "title": "Перечисление Статусы отборов размещений товаров",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      }
+    ]
+  }
+}

@@ -7,7 +7,8 @@ query_graph.py — быстрый поиск по 4-слойному графу 
   python query_graph.py "запрос"
   python query_graph.py "запрос" --top-k 20
 """
-import sys, json, os, time
+import sys, json, os, time, io
+from contextlib import redirect_stdout
 sys.stdout.reconfigure(encoding='utf-8')
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -27,14 +28,18 @@ def main():
             top_k = int(sys.argv[idx + 1])
     
     t0 = time.time()
-    chunks, graph, vectors, node_ids = load_data(lightweight=True)
+    # query_graph.py имеет контракт «только JSON в stdout»; служебные сообщения
+    # загрузчика не должны ломать парсинг opencode.
+    with redirect_stdout(io.StringIO()):
+        chunks, graph, vectors, node_ids = load_data(lightweight=True)
     if not chunks:
         print(json.dumps({"error": "Нет данных. Сначала: python graph_rag_1c_erp.py build"}, ensure_ascii=False))
         sys.exit(1)
     
-    embedder = Embedder(vectorizer_path=TFIDF_FILE)
-    rag = GraphRAG(chunks, graph, vectors, node_ids, embedder)
-    result = rag.search(query, top_k=top_k)
+    with redirect_stdout(io.StringIO()):
+        embedder = Embedder(vectorizer_path=TFIDF_FILE)
+        rag = GraphRAG(chunks, graph, vectors, node_ids, embedder)
+        result = rag.search(query, top_k=top_k)
     
     by_layer = result.get("by_layer", {})
     
@@ -53,6 +58,22 @@ def main():
                          for r in by_layer.get("knowledge", [])[:10]],
         },
         "workflow": result.get("workflow", [])[:15],
+        "graph_paths": [
+            {
+                "title": r["title"], "layer": r.get("layer"),
+                "relation": r.get("relation"),
+                "path": r.get("graph_path", []),
+                "relations": r.get("graph_relations", []),
+                "score": round(r.get("score", 0), 3),
+            }
+            for r in result.get("graph_expanded", [])[:20]
+        ],
+        "diagnostics": {
+            "graph_loaded": graph is not None,
+            "unique_chunks": len(chunks),
+            "vector_rows": int(vectors.shape[0]) if vectors is not None else 0,
+            "node_ids": len(node_ids or []),
+        },
     }
     
     print(json.dumps(output, ensure_ascii=False, indent=2, default=str))

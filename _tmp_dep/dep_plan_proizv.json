@@ -1,0 +1,383 @@
+Загружено (быстро): 97353 чанков (метаданные), векторы (48788, 5000)
+{
+  "target": "ERPcode/Documents/ПланПроизводства",
+  "max_depth": 2,
+  "tree": {
+    "node_id": "ERPcode/Documents/ПланПроизводства",
+    "title": "Документ План производства",
+    "node_type": "metadata",
+    "dependencies": [
+      {
+        "node_id": "ERPcode/Catalogs/ВидыПланов",
+        "relation": "requires",
+        "field": "ВидПлана",
+        "field_id": "ERPcode/Documents/ПланПроизводства/Fields/ВидПлана",
+        "create_on_input": "Use",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ПланПроизводства.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/ВидыПланов",
+          "title": "Справочник Виды планов",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Enums/Периодичность",
+              "relation": "requires",
+              "field": "Периодичность",
+              "field_id": "ERPcode/Catalogs/ВидыПланов/Fields/Периодичность",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ВидыПланов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/Периодичность",
+                "title": "Перечисление Периодичность",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ТипыПланов",
+              "relation": "requires",
+              "field": "ТипПлана",
+              "field_id": "ERPcode/Catalogs/ВидыПланов/Fields/ТипПлана",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ВидыПланов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ТипыПланов",
+                "title": "Перечисление Типы планов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ТипыПроизводственныхПроцессов",
+              "relation": "requires",
+              "field": "ТипПроизводственногоПроцесса",
+              "field_id": "ERPcode/Catalogs/ВидыПланов/Fields/ТипПроизводственногоПроцесса",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ВидыПланов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ТипыПроизводственныхПроцессов",
+                "title": "Перечисление Типы производственных процессов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/ХозяйственныеОперации",
+              "relation": "requires",
+              "field": "ХозяйственнаяОперация",
+              "field_id": "ERPcode/Catalogs/ВидыПланов/Fields/ХозяйственнаяОперация",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\ВидыПланов.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ХозяйственныеОперации",
+                "title": "Перечисление Хозяйственные операции",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+        "relation": "requires",
+        "field": "Подразделение",
+        "field_id": "ERPcode/Documents/ПланПроизводства/Fields/Подразделение",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ПланПроизводства.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/СтруктураПредприятия",
+          "title": "Справочник Структура предприятия",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Enums/ВариантыОбособленногоУчетаТоваров",
+              "relation": "requires",
+              "field": "ВариантОбособленногоУчетаТоваров",
+              "field_id": "ERPcode/Catalogs/СтруктураПредприятия/Fields/ВариантОбособленногоУчетаТоваров",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СтруктураПредприятия.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/ВариантыОбособленногоУчетаТоваров",
+                "title": "Перечисление Варианты обособленного учета товаров",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СпособыПолученияПолуфабрикатовПроизводимыхВПроцессе",
+              "relation": "requires",
+              "field": "СпособПолученияПолуфабрикатов",
+              "field_id": "ERPcode/Catalogs/СтруктураПредприятия/Fields/СпособПолученияПолуфабрикатов",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СтруктураПредприятия.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СпособыПолученияПолуфабрикатовПроизводимыхВПроцессе",
+                "title": "Перечисление Способы получения полуфабрикатов производимых в процессе",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+              "relation": "requires",
+              "field": "Статус",
+              "field_id": "ERPcode/Catalogs/СтруктураПредприятия/Fields/Статус",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СтруктураПредприятия.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СтатусыОрганизацийПодразделений",
+                "title": "Перечисление Статусы организаций подразделений",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Catalogs/СценарииТоварногоПланирования",
+        "relation": "requires",
+        "field": "Сценарий",
+        "field_id": "ERPcode/Documents/ПланПроизводства/Fields/Сценарий",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ПланПроизводства.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Catalogs/СценарииТоварногоПланирования",
+          "title": "Справочник Сценарии товарного планирования",
+          "node_type": "metadata",
+          "dependencies": [
+            {
+              "node_id": "ERPcode/Catalogs/Валюты",
+              "relation": "requires",
+              "field": "Валюта",
+              "field_id": "ERPcode/Catalogs/СценарииТоварногоПланирования/Fields/Валюта",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СценарииТоварногоПланирования.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Валюты",
+                "title": "Справочник Валюты",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Catalogs/Сценарии",
+              "relation": "requires",
+              "field": "СценарийБюджетирования",
+              "field_id": "ERPcode/Catalogs/СценарииТоварногоПланирования/Fields/СценарийБюджетирования",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СценарииТоварногоПланирования.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Catalogs/Сценарии",
+                "title": "Справочник Сценарии бюджетирования",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/Периодичность",
+              "relation": "requires",
+              "field": "Периодичность",
+              "field_id": "ERPcode/Catalogs/СценарииТоварногоПланирования/Fields/Периодичность",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СценарииТоварногоПланирования.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/Периодичность",
+                "title": "Перечисление Периодичность",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            },
+            {
+              "node_id": "ERPcode/Enums/СпособыРасчетаМатериалов",
+              "relation": "requires",
+              "field": "СпособРасчетаПотребностейВМатериалах",
+              "field_id": "ERPcode/Catalogs/СценарииТоварногоПланирования/Fields/СпособРасчетаПотребностейВМатериалах",
+              "create_on_input": "Auto",
+              "required_by_metadata": true,
+              "applicability": "conditional_or_unknown",
+              "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Catalogs\\СценарииТоварногоПланирования.xml",
+              "required": true,
+              "inline": true,
+              "inline_candidate": true,
+              "inline_guaranteed": false,
+              "classification": "metadata-required-inline-candidate",
+              "dependency": {
+                "node_id": "ERPcode/Enums/СпособыРасчетаМатериалов",
+                "title": "Перечисление Способы расчета материалов",
+                "node_type": "metadata",
+                "dependencies": [],
+                "truncated": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/Периодичность",
+        "relation": "requires",
+        "field": "Периодичность",
+        "field_id": "ERPcode/Documents/ПланПроизводства/Fields/Периодичность",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ПланПроизводства.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/Периодичность",
+          "title": "Перечисление Периодичность",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СпособыРасчетаМатериалов",
+        "relation": "requires",
+        "field": "СпособРасчетаПотребностейВМатериалах",
+        "field_id": "ERPcode/Documents/ПланПроизводства/Fields/СпособРасчетаПотребностейВМатериалах",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ПланПроизводства.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СпособыРасчетаМатериалов",
+          "title": "Перечисление Способы расчета материалов",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      },
+      {
+        "node_id": "ERPcode/Enums/СтатусыПланов",
+        "relation": "requires",
+        "field": "Статус",
+        "field_id": "ERPcode/Documents/ПланПроизводства/Fields/Статус",
+        "create_on_input": "Auto",
+        "required_by_metadata": true,
+        "applicability": "conditional_or_unknown",
+        "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ПланПроизводства.xml",
+        "required": true,
+        "inline": true,
+        "inline_candidate": true,
+        "inline_guaranteed": false,
+        "classification": "metadata-required-inline-candidate",
+        "dependency": {
+          "node_id": "ERPcode/Enums/СтатусыПланов",
+          "title": "Перечисление Статусы планов",
+          "node_type": "metadata",
+          "dependencies": []
+        }
+      }
+    ]
+  }
+}

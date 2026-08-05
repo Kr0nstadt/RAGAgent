@@ -1,0 +1,600 @@
+Загружено (быстро): 97353 чанков (метаданные), векторы (48788, 5000)
+{
+  "start": "ERPcode/Documents/РеализацияТоваровУслуг",
+  "end": "ERPcode/Documents/ВозвратТоваровОтКлиента",
+  "paths": [
+    {
+      "steps": [
+        {
+          "order": 1,
+          "node_id": "ERPcode/Documents/РеализацияТоваровУслуг",
+          "title": "Документ Реализация товаров и услуг",
+          "registers": [
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоНДС",
+              "title": "Регистр накопления Движения по НДС",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКОтгрузке",
+              "title": "Регистр накопления Товары к отгрузке",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьПрочиеДоходы",
+              "title": "Регистр накопления (не используется) Прочие доходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОперацииСПрослеживаемымиТоварами",
+              "title": "Регистр сведений Операции с прослеживаемыми товарами",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасчетыСКлиентамиПланОплат",
+              "title": "Регистр накопления Плановые оплаты клиентов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияСерийТоваров",
+              "title": "Регистр накопления Движения серий товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РезервыТоваровОрганизаций",
+              "title": "Регистр накопления Резервы товаров организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ИсправленияДокументов",
+              "title": "Регистр сведений Исправления документов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасчетыСКлиентами",
+              "title": "Регистр накопления Расчеты с клиентами",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииТоваровОрганизаций",
+              "title": "Регистр накопления Партии товаров организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеРасходы",
+              "title": "Регистр накопления Прочие расходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрослеживаемыеТоварыОтгруженныеВЕАЭС",
+              "title": "Регистр накопления Прослеживаемые товары отгруженные в ЕАЭС",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/СуммыДокументовВВалютахУчета",
+              "title": "Регистр сведений Суммы документов в валютах учета",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/СебестоимостьТоваров",
+              "title": "Регистр накопления Себестоимость товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияНоменклатураДоходыРасходы",
+              "title": "Регистр накопления Движения Номенклатура - Доходы/Расходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииТоваровПереданныеНаКомиссию",
+              "title": "Регистр накопления Партии товаров переданные на комиссию",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОперацииСПрослеживаемымиТоварамиРасширенный",
+              "title": "Регистр сведений Операции с прослеживаемыми товарами (расширенный)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеАктивыПассивы",
+              "title": "Регистр накопления Активы и пассивы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоПрочимАктивамПассивам",
+              "title": "Регистр накопления Движения Прочие активы и пассивы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОтражениеДокументовВРеглУчете",
+              "title": "Регистр сведений Отражение документов в регл учете",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДетализацияПартийТоваровДляНДСиУСН",
+              "title": "Регистр накопления Детализация партий товаров для НДС и УСН (средняя за месяц)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСПредъявленный",
+              "title": "Регистр накопления НДС предъявленный",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКОформлениюОтчетовКомитенту",
+              "title": "Регистр накопления Товары к оформлению отчетов комитенту",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеДоходы",
+              "title": "Регистр накопления Прочие доходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПереданнаяВозвратнаяТара",
+              "title": "Регистр накопления Переданная возвратная тара",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииРасходовНаСебестоимостьТоваров",
+              "title": "Регистр накопления Партии расходов на себестоимость товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасходыПриУСНМатериалы",
+              "title": "Регистр накопления Расходы при УСН по материалам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоАкцизам",
+              "title": "Регистр накопления Движения по акцизам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ФактическиеДанныеБюджетирования",
+              "title": "Регистр накопления Фактические данные бюджетирования",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/МеждународныйБезКорреспонденции",
+              "title": "Регистр бухгалтерии Журнал проводок без корреспонденции (международный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/Хозрасчетный",
+              "title": "Регистр бухгалтерии Журнал проводок (регламентированный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РаспоряженияНаОтгрузкуИВозврат",
+              "title": "Регистр накопления Распоряжения на отгрузку и возврат",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыНаСкладах",
+              "title": "Регистр накопления Товары на складах",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОтражениеДокументовВМеждународномУчете",
+              "title": "Регистр сведений Отражение документов в международном учете",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьЗаказыКлиентов",
+              "title": "Регистр накопления (не используется) Заказы клиентов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ДанныеОснованийСчетовФактур",
+              "title": "Регистр сведений Данные оснований счетов-фактур",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыПереданныеНаКомиссию",
+              "title": "Регистр накопления Товары переданные на комиссию",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДетализацияПартийТоваровДляНДСиУСН2_4",
+              "title": "Регистр накопления Детализация партий товаров для НДС и УСН (ФИФО скользящая оценка)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/Международный",
+              "title": "Регистр бухгалтерии Журнал проводок с корреспонденцией (международный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасходыПриУСНТовары",
+              "title": "Регистр накопления Расходы при УСН по товарам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСЗаписиКнигиПродаж",
+              "title": "Регистр накопления НДС Продажи",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасчетыСКлиентамиПоДокументам",
+              "title": "Регистр накопления Расчеты с клиентами по документам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыОрганизацийКПередаче",
+              "title": "Регистр накопления Товары организаций к передаче",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/КнигаУчетаДоходовИРасходов",
+              "title": "Регистр накопления Книга учета доходов и расходов (раздел I)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/КорректировкиНалоговойБазы",
+              "title": "Регистр бухгалтерии Журнал проводок (корректировки по НУ)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/Доставка",
+              "title": "Регистр накопления Доставка",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/МатериалыИРаботыВПроизводстве",
+              "title": "Регистр накопления Материалы и работы в производстве",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ВыручкаИСебестоимостьПродаж",
+              "title": "Регистр накопления Выручка и себестоимость продаж",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияКонтрагентКонтрагент",
+              "title": "Регистр накопления Движения Контрагент - Контрагент",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияНоменклатураНоменклатура",
+              "title": "Регистр накопления Движения Номенклатура - Номенклатура",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыОрганизаций",
+              "title": "Регистр накопления Товары организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСЗаписиКнигиПокупок",
+              "title": "Регистр накопления НДС Покупки",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/НДССостояниеРеализации0",
+              "title": "Регистр сведений НДС состояние реализации 0%",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьРаспоряженияНаОтгрузку",
+              "title": "Регистр накопления (не используется) Распоряжения на отгрузку",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/БонусныеБаллы",
+              "title": "Регистр накопления Бонусные баллы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииПроизводственныхЗатрат",
+              "title": "Регистр накопления Партии производственных затрат",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ЗапасыИПотребности",
+              "title": "Регистр накопления Запасы и потребности",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УслугиКОформлениюОтчетовПринципалу",
+              "title": "Регистр накопления Услуги к оформлению отчетов принципалу",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииЗатратНаВыпуск",
+              "title": "Регистр накопления Партии затрат на выпуск",
+              "conditional": true
+            }
+          ],
+          "ui_paths": [
+            "Продажи → ОптовыеПродажи → РеализацияТоваровУслуг",
+            "ПродажиБазовая → ПродажиИВозвратыБазовая → РеализацияТоваровУслуг"
+          ]
+        },
+        {
+          "order": 2,
+          "node_id": "ERPcode/Documents/ВозвратТоваровОтКлиента",
+          "title": "Документ Возврат товаров от клиента",
+          "registers": [
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоНДС",
+              "title": "Регистр накопления Движения по НДС",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьПрочиеДоходы",
+              "title": "Регистр накопления (не используется) Прочие доходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОперацииСПрослеживаемымиТоварами",
+              "title": "Регистр сведений Операции с прослеживаемыми товарами",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьЗаявкиНаВозвратТоваровОтКлиентов",
+              "title": "Регистр накопления (не используется) Заявки на возврат товаров от клиентов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияСерийТоваров",
+              "title": "Регистр накопления Движения серий товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РезервыТоваровОрганизаций",
+              "title": "Регистр накопления Резервы товаров организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ИсправленияДокументов",
+              "title": "Регистр сведений Исправления документов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасчетыСКлиентами",
+              "title": "Регистр накопления Расчеты с клиентами",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииТоваровОрганизаций",
+              "title": "Регистр накопления Партии товаров организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеРасходы",
+              "title": "Регистр накопления Прочие расходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/СуммыДокументовВВалютахУчета",
+              "title": "Регистр сведений Суммы документов в валютах учета",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/СебестоимостьТоваров",
+              "title": "Регистр накопления Себестоимость товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияНоменклатураДоходыРасходы",
+              "title": "Регистр накопления Движения Номенклатура - Доходы/Расходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииТоваровПереданныеНаКомиссию",
+              "title": "Регистр накопления Партии товаров переданные на комиссию",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииПрочихРасходов",
+              "title": "Регистр накопления Партии прочих расходов",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОперацииСПрослеживаемымиТоварамиРасширенный",
+              "title": "Регистр сведений Операции с прослеживаемыми товарами (расширенный)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеАктивыПассивы",
+              "title": "Регистр накопления Активы и пассивы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОтражениеДокументовВРеглУчете",
+              "title": "Регистр сведений Отражение документов в регл учете",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииНДСКРаспределению",
+              "title": "Регистр накопления Партии НДС к распределению",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДетализацияПартийТоваровДляНДСиУСН",
+              "title": "Регистр накопления Детализация партий товаров для НДС и УСН (средняя за месяц)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСПредъявленный",
+              "title": "Регистр накопления НДС предъявленный",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКОформлениюОтчетовКомитенту",
+              "title": "Регистр накопления Товары к оформлению отчетов комитенту",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПрочиеДоходы",
+              "title": "Регистр накопления Прочие доходы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПереданнаяВозвратнаяТара",
+              "title": "Регистр накопления Переданная возвратная тара",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииРасходовНаСебестоимостьТоваров",
+              "title": "Регистр накопления Партии расходов на себестоимость товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасходыПриУСНМатериалы",
+              "title": "Регистр накопления Расходы при УСН по материалам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияПоАкцизам",
+              "title": "Регистр накопления Движения по акцизам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ФактическиеДанныеБюджетирования",
+              "title": "Регистр накопления Фактические данные бюджетирования",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/МеждународныйБезКорреспонденции",
+              "title": "Регистр бухгалтерии Журнал проводок без корреспонденции (международный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ОтклоненияВСтоимостиТоваров",
+              "title": "Регистр накопления Отклонения в стоимости товаров",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/Хозрасчетный",
+              "title": "Регистр бухгалтерии Журнал проводок (регламентированный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РаспоряженияНаОтгрузкуИВозврат",
+              "title": "Регистр накопления Распоряжения на отгрузку и возврат",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыНаСкладах",
+              "title": "Регистр накопления Товары на складах",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ОтражениеДокументовВМеждународномУчете",
+              "title": "Регистр сведений Отражение документов в международном учете",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ДанныеОснованийСчетовФактур",
+              "title": "Регистр сведений Данные оснований счетов-фактур",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыПереданныеНаКомиссию",
+              "title": "Регистр накопления Товары переданные на комиссию",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДетализацияПартийТоваровДляНДСиУСН2_4",
+              "title": "Регистр накопления Детализация партий товаров для НДС и УСН (ФИФО скользящая оценка)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/Международный",
+              "title": "Регистр бухгалтерии Журнал проводок с корреспонденцией (международный учет)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасходыПриУСНТовары",
+              "title": "Регистр накопления Расходы при УСН по товарам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСЗаписиКнигиПродаж",
+              "title": "Регистр накопления НДС Продажи",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/РасчетыСКлиентамиПоДокументам",
+              "title": "Регистр накопления Расчеты с клиентами по документам",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыОрганизацийКПередаче",
+              "title": "Регистр накопления Товары организаций к передаче",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/КнигаУчетаДоходовИРасходов",
+              "title": "Регистр накопления Книга учета доходов и расходов (раздел I)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccountingRegisters/КорректировкиНалоговойБазы",
+              "title": "Регистр бухгалтерии Журнал проводок (корректировки по НУ)",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ВыручкаИСебестоимостьПродаж",
+              "title": "Регистр накопления Выручка и себестоимость продаж",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ДвиженияНоменклатураНоменклатура",
+              "title": "Регистр накопления Движения Номенклатура - Номенклатура",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыОрганизаций",
+              "title": "Регистр накопления Товары организаций",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/НДСЗаписиКнигиПокупок",
+              "title": "Регистр накопления НДС Покупки",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/УдалитьРаспоряженияНаОтгрузку",
+              "title": "Регистр накопления (не используется) Распоряжения на отгрузку",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/БонусныеБаллы",
+              "title": "Регистр накопления Бонусные баллы",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/InformationRegisters/ЖурналУчетаСчетовФактур",
+              "title": "Регистр сведений Журнал учета счетов-фактур",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ТоварыКПоступлению",
+              "title": "Регистр накопления Товары к поступлению",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ЗапасыИПотребности",
+              "title": "Регистр накопления Запасы и потребности",
+              "conditional": true
+            },
+            {
+              "node_id": "ERPcode/AccumulationRegisters/ПартииЗатратНаВыпуск",
+              "title": "Регистр накопления Партии затрат на выпуск",
+              "conditional": true
+            }
+          ],
+          "ui_paths": [
+            "Продажи → ОптовыеПродажи → ВозвратТоваровОтКлиента",
+            "ПродажиБазовая → ПродажиИВозвратыБазовая → ВозвратТоваровОтКлиента"
+          ],
+          "incoming_relation": "creates_on_basis",
+          "evidence": "C:\\Users\\Y.Karpova\\Desktop\\RAGAgent\\ERPcode\\Documents\\ВозвратТоваровОтКлиента.xml"
+        }
+      ]
+    }
+  ]
+}
